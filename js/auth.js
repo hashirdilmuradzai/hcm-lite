@@ -95,7 +95,7 @@ const Auth = (() => {
       department: 'Management',
       designation: 'System Administrator',
       salary: 0,
-      joiningDate: new Date().toISOString().split('T')[0],
+      joiningDate: Storage.getLocalDateString(),
       status: 'active',
       phone: ''
     };

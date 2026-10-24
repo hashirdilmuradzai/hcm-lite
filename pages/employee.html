@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
   <link rel="stylesheet" href="../css/responsive.css">
+  <!-- face-api.js CDN for optional face detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -205,7 +207,9 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 class="modal-title">Attendance Verification</h3>
-        <button class="modal-close" id="close-verification-modal">${UI.ICONS.x}</button>
+        <button class="modal-close" id="close-verification-modal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
       <div class="modal-body">
         <!-- Camera Preview Container (if camera verification enabled) -->
@@ -257,7 +261,9 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 class="modal-title">Apply for Time Off</h3>
-        <button class="modal-close" id="close-apply-leave-modal">${UI.ICONS.x}</button>
+        <button class="modal-close" id="close-apply-leave-modal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
       <form id="apply-leave-form">
         <div class="modal-body">
@@ -731,7 +737,9 @@
         }
 
         fromInput.onchange = updateCalculatedDays;
+        fromInput.oninput = updateCalculatedDays;
         toInput.onchange = updateCalculatedDays;
+        toInput.oninput = updateCalculatedDays;
 
         form.onsubmit = (e) => {
           e.preventDefault();

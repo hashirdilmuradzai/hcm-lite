@@ -140,8 +140,16 @@ const Storage = (() => {
     return all.filter(a => a.date === dateStr);
   }
 
+  // Format local date string YYYY-MM-DD (consistent across timezones)
+  function getLocalDateString(d = new Date()) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   function getTodayAttendanceForEmployee(empId) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const records = getAttendanceForEmployee(empId);
     return records.find(r => r.date === today) || null;
   }
@@ -215,7 +223,7 @@ const Storage = (() => {
       content: announcement.content,
       authorName: announcement.authorName || 'Management',
       priority: announcement.priority || 'normal',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       createdAt: new Date().toISOString()
     };
     all.unshift(item);
@@ -333,6 +341,7 @@ const Storage = (() => {
     getUserByEmail,
     saveUser,
     deleteUser,
+    getLocalDateString,
     getAttendance,
     getAttendanceForEmployee,
     getAttendanceForDate,

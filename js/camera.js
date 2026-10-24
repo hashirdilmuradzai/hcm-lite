@@ -105,6 +105,22 @@ const CameraVerification = (() => {
         }
       }
 
+      // If faceapi is loaded from CDN and available
+      if (window.faceapi && typeof window.faceapi.detectSingleFace === 'function') {
+        try {
+          const faceResult = await window.faceapi.detectSingleFace(videoElement);
+          if (faceResult) {
+            consecutiveDetections++;
+            if (consecutiveDetections >= 2) {
+              onStatusUpdate({ detected: true, message: 'Face Detected & Positioned' });
+              return;
+            }
+          }
+        } catch (e) {
+          // Fallback to canvas contour analysis below
+        }
+      }
+
       // Robust Canvas-based optical density & skin tone color analysis in oval
       canvas.width = 160;
       canvas.height = 120;

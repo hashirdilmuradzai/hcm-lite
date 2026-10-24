@@ -342,12 +342,14 @@ const App = (() => {
       }
     }
 
-    // Render Charts
-    setTimeout(() => {
-      AnalyticsCharts.renderTodayDistribution('chart-today-distribution');
-      AnalyticsCharts.renderDepartmentAttendance('chart-department-attendance');
-      AnalyticsCharts.renderMonthlyTrend('chart-monthly-trend');
-    }, 50);
+    // Render Charts if on page and available
+    if (typeof AnalyticsCharts !== 'undefined') {
+      setTimeout(() => {
+        AnalyticsCharts.renderTodayDistribution('chart-today-distribution');
+        AnalyticsCharts.renderDepartmentAttendance('chart-department-attendance');
+        AnalyticsCharts.renderMonthlyTrend('chart-monthly-trend');
+      }, 50);
+    }
   }
 
   // --- Leave Decision Dialog (Approve / Reject with comment) ---
@@ -416,7 +418,9 @@ const App = (() => {
           UI.showToast('Leave request rejected.', 'info');
         }
         closeModal();
-        renderAdminDashboardData();
+        if (getCurrentPageName() === 'admin') {
+          renderAdminDashboardData();
+        }
         if (typeof LeavesController !== 'undefined' && LeavesController.renderLeavesTable) {
           LeavesController.renderLeavesTable();
         }

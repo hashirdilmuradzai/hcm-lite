@@ -248,29 +248,25 @@ const Attendance = (() => {
       // Check if covered by approved leave
       const leaveCover = allLeaves.find(l => l.fromDate <= dateStr && dateStr <= l.toDate);
 
-      let dayStatus = 'Non-Working Day';
-      if (isWorkDay) {
-        if (!hasJoined) {
-          dayStatus = 'Not Employed';
-        } else if (att) {
-          if (att.status === 'Half Day') {
-            dayStatus = 'Half Day';
-            halfDays++;
-          } else {
-            dayStatus = att.isLate ? 'Late' : 'Present';
-            presentDays++;
-          }
-          if (att.isLate) lateDays++;
-          if (att.workHours) totalWorkedHours += att.workHours;
-        } else if (leaveCover) {
-          dayStatus = `On Leave (${leaveCover.type})`;
-          approvedLeaveDays++;
-        } else if (isPastOrToday) {
-          dayStatus = 'Absent';
-          absentDays++;
+      let dayStatus = isWorkDay ? 'Upcoming' : 'Non-Working Day';
+      if (!hasJoined) {
+        dayStatus = 'Not Employed';
+      } else if (att) {
+        if (att.status === 'Half Day') {
+          dayStatus = 'Half Day';
+          halfDays++;
         } else {
-          dayStatus = 'Upcoming';
+          dayStatus = att.isLate ? 'Late' : 'Present';
+          presentDays++;
         }
+        if (att.isLate) lateDays++;
+        if (att.workHours) totalWorkedHours += att.workHours;
+      } else if (leaveCover) {
+        dayStatus = `On Leave (${leaveCover.type})`;
+        approvedLeaveDays++;
+      } else if (isWorkDay && isPastOrToday) {
+        dayStatus = 'Absent';
+        absentDays++;
       }
 
       dailyBreakdown.push({
