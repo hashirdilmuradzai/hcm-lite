@@ -5,95 +5,281 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="HCM Lite — A modern, professional HR Management platform for modern teams.">
   <title>HCM Lite — Sign In & Setup</title>
-  <link rel="stylesheet" href="css/variables.css">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/responsive.css">
+  <!-- Cache-busting query strings to ensure GitHub Pages and browsers always load fresh assets -->
+  <link rel="stylesheet" href="css/variables.css?v=2.2.0">
+  <link rel="stylesheet" href="css/style.css?v=2.2.0">
+  <link rel="stylesheet" href="css/components.css?v=2.2.0">
+  <link rel="stylesheet" href="css/responsive.css?v=2.2.0">
   <style>
+    /* Complete bulletproof self-contained styling for authentication screen */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f8fafc;
+      color: #0f172a;
+      font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+      -webkit-font-smoothing: antialiased;
+    }
     .auth-page-wrapper {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: var(--space-6);
-      background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.05), transparent 70%), var(--color-bg);
+      padding: 32px 16px;
+      background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.05), transparent 70%), #f8fafc;
+      box-sizing: border-box;
     }
     .auth-container {
       width: 100%;
-      max-width: 480px;
-    }
-    .auth-brand-header {
-      text-align: center;
-      margin-bottom: var(--space-8);
+      max-width: 470px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: var(--space-2);
+    }
+    .auth-brand-header {
+      text-align: center;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
     .auth-brand-logo {
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, #17233B 0%, #2563EB 100%);
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-      margin-bottom: var(--space-2);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+      margin-bottom: 4px;
     }
     .auth-brand-logo svg {
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
+    }
+    .brand-title {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      letter-spacing: -0.025em;
     }
     .auth-tagline {
-      font-size: var(--font-size-sm);
-      color: var(--color-text-secondary);
+      font-size: 0.875rem;
+      color: #64748b;
+      margin: 0;
+    }
+    /* Unified SaaS Auth Card */
+    .auth-card {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+      padding: 28px 28px 32px;
+      box-sizing: border-box;
+    }
+    /* Premium SaaS Segmented Tabs Nav */
+    .auth-tabs-nav {
+      display: flex;
+      background-color: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 24px;
+      gap: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .auth-tab-btn {
+      flex: 1;
+      padding: 9px 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #64748b;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.18s ease-in-out;
+      text-align: center;
+      user-select: none;
+      line-height: 1.3;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+    }
+    .auth-tab-btn:hover:not(.active) {
+      color: #0f172a;
+      background-color: rgba(255, 255, 255, 0.6);
+    }
+    .auth-tab-btn.active {
+      background-color: #ffffff;
+      color: #0f172a;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .auth-card-heading {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .auth-card-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 4px 0;
+      letter-spacing: -0.015em;
+    }
+    .auth-card-subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin: 0;
+    }
+    .auth-switch-text {
+      font-size: 0.8125rem;
+      color: #64748b;
+      text-align: center;
+      margin-top: 20px;
+      margin-bottom: 0;
+    }
+    .auth-switch-link {
+      color: #2563eb;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .auth-switch-link:hover {
+      text-decoration: underline;
+      color: #1d4ed8;
+    }
+    /* Universal Copyright Footer */
+    .app-copyright-footer {
+      width: 100%;
+      text-align: center;
+      padding: 24px 0 12px;
+      box-sizing: border-box;
+    }
+    .copyright-text {
+      font-size: 0.775rem;
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.5;
+    }
+    .copyright-link {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+    .copyright-link:hover {
+      text-decoration: underline;
+      color: #1d4ed8;
+    }
+    @media (max-width: 480px) {
+      .auth-card {
+        padding: 22px 18px;
+        border-radius: 14px;
+      }
+      .auth-page-wrapper {
+        padding: 20px 12px;
+      }
+      .auth-tabs-nav {
+        margin-bottom: 18px;
+      }
+      .auth-tab-btn {
+        padding: 8px 10px;
+        font-size: 0.8125rem;
+      }
     }
   </style>
 </head>
 <body>
   <div class="auth-page-wrapper">
     <div class="auth-container">
+      <!-- Brand Header -->
       <div class="auth-brand-header">
         <div class="auth-brand-logo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
         </div>
-        <h1 class="brand-title" style="font-size: 1.75rem;">HCM Lite</h1>
+        <h1 class="brand-title">HCM Lite</h1>
         <p class="auth-tagline">Human Capital Management for High-Performing Teams</p>
       </div>
 
-      <!-- AUTH TABS NAV -->
-      <nav class="auth-tabs-nav" role="tablist" aria-label="Authentication Options">
-        <button type="button" class="auth-tab-btn active" id="tab-btn-signin" role="tab" aria-selected="true" aria-controls="login-card">
-          Sign In
-        </button>
-        <button type="button" class="auth-tab-btn" id="tab-btn-create-company" role="tab" aria-selected="false" aria-controls="first-run-setup-card">
-          Create New Company
-        </button>
-      </nav>
+      <!-- Main SaaS Auth Card -->
+      <div class="card auth-card">
+        <!-- Inside top of card: Segmented Navigation -->
+        <nav class="auth-tabs-nav" role="tablist" aria-label="Authentication Options">
+          <button type="button" class="auth-tab-btn active" id="tab-btn-signin" role="tab" aria-selected="true" aria-controls="login-card">
+            Sign In
+          </button>
+          <button type="button" class="auth-tab-btn" id="tab-btn-create-company" role="tab" aria-selected="false" aria-controls="first-run-setup-card">
+            Create Company
+          </button>
+        </nav>
 
-      <!-- FIRST RUN / NEW COMPANY SETUP CARD -->
-      <div class="card" id="first-run-setup-card" style="display: none;">
-        <div class="card-header">
-          <div class="card-title-group">
-            <h2 class="card-title">Create Company Workspace</h2>
-            <span class="card-subtitle">Set up a new company workspace and create its administrator account</span>
+        <!-- VIEW 1: SIGN IN VIEW -->
+        <div id="login-card" style="display: block;">
+          <div class="auth-card-heading">
+            <h2 class="auth-card-title">Welcome back</h2>
+            <p class="auth-card-subtitle">Sign in to your HCM Lite account.</p>
           </div>
+
+          <!-- In-form error alert banner -->
+          <div id="login-error-alert" class="alert alert-error" style="display: none; margin-bottom: 16px;" role="alert">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span id="login-error-text">Invalid email or password.</span>
+          </div>
+
+          <form id="login-form">
+            <div class="form-group">
+              <label class="form-label" for="login-email">Email Address <span class="required">*</span></label>
+              <input type="email" id="login-email" class="form-input" required placeholder="name@company.com" autocomplete="email">
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="login-password" style="margin-bottom: 0;">Password <span class="required">*</span></label>
+                <button type="button" id="toggle-login-pwd" class="btn btn-outline btn-sm" style="padding: 1px 8px; font-size: 0.75rem;" aria-label="Toggle password visibility">Show</button>
+              </div>
+              <input type="password" id="login-password" class="form-input" required placeholder="••••••••" autocomplete="current-password">
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 18px;">
+              <label style="display: inline-flex; align-items: center; gap: 8px; font-size: var(--font-size-xs, 0.8125rem); color: var(--color-text-secondary, #64748b); cursor: pointer; user-select: none;">
+                <input type="checkbox" id="login-remember-me" style="cursor: pointer;">
+                <span>Remember my email</span>
+              </label>
+            </div>
+
+            <div>
+              <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-login-submit">
+                Sign In
+              </button>
+            </div>
+
+            <p class="auth-switch-text">
+              New to HCM Lite? <a href="#" class="auth-switch-link" id="link-go-to-register">Create a Company</a>
+            </p>
+          </form>
         </div>
-        <div class="card-body">
+
+        <!-- VIEW 2: CREATE COMPANY VIEW -->
+        <div id="first-run-setup-card" style="display: none;">
+          <div class="auth-card-heading">
+            <h2 class="auth-card-title">Create your workspace</h2>
+            <p class="auth-card-subtitle">Set up your company's HR system.</p>
+          </div>
+
           <form id="first-run-form">
             <div class="form-group">
               <label class="form-label" for="setup-company-name">Company Name <span class="required">*</span></label>
               <input type="text" id="setup-company-name" class="form-input" required placeholder="e.g. Acme Technologies" autocomplete="organization">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="setup-company-code">Workspace ID / Company Code <span class="required">*</span></label>
-              <input type="text" id="setup-company-code" class="form-input" required placeholder="e.g. ACME" maxlength="15" autocomplete="off" style="text-transform: uppercase;">
-              <span class="form-hint">Unique company identifier for employee login (letters, numbers, dashes)</span>
-              <div class="form-error" id="setup-company-code-error" style="display: none; color: var(--color-error); font-size: var(--font-size-xs); margin-top: 4px;"></div>
             </div>
 
             <div class="form-row">
@@ -109,7 +295,7 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label" for="setup-admin-pwd">Admin Password <span class="required">*</span></label>
+                <label class="form-label" for="setup-admin-pwd">Password <span class="required">*</span></label>
                 <input type="password" id="setup-admin-pwd" class="form-input" required minlength="6" placeholder="Min. 6 characters" autocomplete="new-password">
               </div>
               <div class="form-group">
@@ -118,8 +304,8 @@
               </div>
             </div>
 
-            <div style="margin: var(--space-4) 0 var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-3);">
-              <span style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Initial Company Rules</span>
+            <div style="margin: 16px 0 12px; border-top: 1px solid var(--color-border, #e2e8f0); padding-top: 12px;">
+              <span style="font-size: var(--font-size-xs, 0.75rem); font-weight: 600; color: var(--color-text-secondary, #64748b); text-transform: uppercase; letter-spacing: 0.05em;">Office Rules &amp; Leave Policy</span>
             </div>
 
             <div class="form-row">
@@ -143,105 +329,39 @@
 
             <div class="form-group">
               <label class="form-label">Weekly Working Days <span class="required">*</span></label>
-              <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: 6px;">
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+              <div style="display: flex; gap: var(--space-3, 10px); flex-wrap: wrap; margin-top: 6px;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="1" checked> Mon
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="2" checked> Tue
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="3" checked> Wed
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="4" checked> Thu
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="5" checked> Fri
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="6"> Sat
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs, 0.75rem); cursor: pointer;">
                   <input type="checkbox" class="setup-workday" value="0"> Sun
                 </label>
               </div>
             </div>
 
-            <div style="margin-top: var(--space-5);">
+            <div style="margin-top: 20px;">
               <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-create-company-submit">
-                Create Company &amp; Admin Account
+                Create Company
               </button>
             </div>
 
             <p class="auth-switch-text">
               Already have an account? <a href="#" class="auth-switch-link" id="link-go-to-login">Sign In</a>
-            </p>
-          </form>
-        </div>
-      </div>
-
-      <!-- STANDARD LOGIN CARD -->
-      <div class="card" id="login-card" style="display: none;">
-        <div class="card-header" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--space-6) var(--space-6) var(--space-4);">
-          <div id="login-company-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; background-color: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); margin-bottom: 2px;">
-            <span class="company-pulse-dot" style="width: 7px; height: 7px;"></span>
-            <span id="login-company-title">Company Workspace</span>
-          </div>
-          <h2 class="card-title" style="font-size: 1.4rem; margin: 0;">Welcome Back</h2>
-          <span class="card-subtitle" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">Sign in to your account to continue</span>
-        </div>
-        <div class="card-body" style="padding-top: var(--space-4);">
-          <!-- In-form error alert banner -->
-          <div id="login-error-alert" class="alert alert-error" style="display: none; margin-bottom: var(--space-4);" role="alert">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-            <span id="login-error-text">Invalid email or password.</span>
-          </div>
-
-          <form id="login-form">
-            <!-- Company Workspace Selector -->
-            <div class="form-group" id="login-workspace-group">
-              <label class="form-label" for="login-company-select">Company Workspace <span class="required">*</span></label>
-              <select id="login-company-select" class="form-select" required aria-label="Select Company Workspace">
-                <!-- Dynamically populated -->
-              </select>
-              <span class="form-hint" id="login-workspace-hint">Select the workspace you belong to</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="login-email">Email Address <span class="required">*</span></label>
-              <input type="email" id="login-email" class="form-input" required placeholder="name@company.com" autocomplete="email">
-            </div>
-
-            <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <label class="form-label" for="login-password" style="margin-bottom: 0;">Password <span class="required">*</span></label>
-                <button type="button" id="toggle-login-pwd" class="btn btn-outline btn-sm" style="padding: 1px 8px; font-size: 0.75rem;" aria-label="Toggle password visibility">Show</button>
-              </div>
-              <input type="password" id="login-password" class="form-input" required placeholder="••••••••" autocomplete="current-password">
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); margin-bottom: var(--space-5);">
-              <label style="display: inline-flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); color: var(--color-text-secondary); cursor: pointer; user-select: none;">
-                <input type="checkbox" id="login-remember-me" style="cursor: pointer;">
-                <span>Remember my email</span>
-              </label>
-            </div>
-
-            <div>
-              <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-login-submit">
-                Sign In
-              </button>
-            </div>
-
-            <div style="margin-top: var(--space-4); text-align: center;">
-              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-                Shared portal for Administrators and Employees. Role redirection is applied automatically upon sign in.
-              </span>
-            </div>
-
-            <p class="auth-switch-text">
-              New to HCM Lite? <a href="#" class="auth-switch-link" id="link-go-to-register">Create a company workspace</a>
             </p>
           </form>
         </div>
@@ -258,14 +378,14 @@
 
   <div id="toast-container"></div>
 
-  <!-- Scripts -->
-  <script src="js/storage.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/attendance.js"></script>
-  <script src="js/leave.js"></script>
-  <script src="js/payroll.js"></script>
-  <script src="js/helper.js"></script>
-  <script src="js/app.js"></script>
+  <!-- Scripts with cache-busting version query string -->
+  <script src="js/storage.js?v=2.2.0"></script>
+  <script src="js/auth.js?v=2.2.0"></script>
+  <script src="js/ui.js?v=2.2.0"></script>
+  <script src="js/attendance.js?v=2.2.0"></script>
+  <script src="js/leave.js?v=2.2.0"></script>
+  <script src="js/payroll.js?v=2.2.0"></script>
+  <script src="js/helper.js?v=2.2.0"></script>
+  <script src="js/app.js?v=2.2.0"></script>
 </body>
 </html>

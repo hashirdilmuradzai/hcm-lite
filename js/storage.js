@@ -222,13 +222,18 @@ const Storage = (() => {
     // Clean and validate company code (workspace slug)
     let companyCode = companyData.code ? companyData.code.trim().toUpperCase() : '';
     if (!companyCode) {
-      companyCode = companyData.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8);
-      if (!companyCode) companyCode = `CORP${maxNum + 1}`;
-    }
-
-    // Check duplicate code
-    if (companies.some(c => (c.code || '').toUpperCase() === companyCode)) {
-      throw new Error(`A company with workspace code "${companyCode}" already exists. Please choose a different code.`);
+      const baseSlug = (companyData.name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) || 'CORP';
+      companyCode = baseSlug;
+      let counter = 1;
+      while (companies.some(c => (c.code || '').toUpperCase() === companyCode)) {
+        companyCode = `${baseSlug}${counter}`;
+        counter++;
+      }
+    } else {
+      // Check duplicate code if explicitly provided
+      if (companies.some(c => (c.code || '').toUpperCase() === companyCode)) {
+        throw new Error(`A company with workspace code "${companyCode}" already exists. Please choose a different code.`);
+      }
     }
 
     const registryEntry = {
@@ -327,9 +332,47 @@ const Storage = (() => {
     return users.find(u => u.email.trim().toLowerCase() === clean) || null;
   }
 
+  // Find all accounts across all locally stored companies matching email
+  function findAccountByEmail(email) {
+    if (!email) return [];
+    const clean = email.trim().toLowerCase();
+    const matches = [];
+    const companies = getCompanies();
+
+    companies.forEach(comp => {
+      const users = getUsers(comp.id);
+      const user = users.find(u => (u.email || '').trim().toLowerCase() === clean);
+      if (user) {
+        matches.push({
+          company: comp,
+          user
+        });
+      }
+    });
+
+    return matches;
+  }
+
+  // Check if email exists in any company
+  function getUserByEmailGlobal(email) {
+    const matches = findAccountByEmail(email);
+    return matches.length > 0 ? matches[0] : null;
+  }
+
   function saveUser(user, overrideCompanyId = null) {
-    const key = getScopedKey('users', overrideCompanyId);
-    const users = getUsers(overrideCompanyId);
+    const targetCompId = overrideCompanyId || getActiveCompanyId();
+    const key = getScopedKey('users', targetCompId);
+    const users = getUsers(targetCompId);
+    const cleanEmail = (user.email || '').trim().toLowerCase();
+
+    // Enforce unique login emails globally across all registered companies
+    if (cleanEmail) {
+      const existingMatch = getUserByEmailGlobal(cleanEmail);
+      if (existingMatch && (existingMatch.company.id !== targetCompId || String(existingMatch.user.id) !== String(user.id))) {
+        throw new Error('An account with this email address already exists.');
+      }
+    }
+
     const index = users.findIndex(u => String(u.id) === String(user.id));
     if (index >= 0) {
       users[index] = { ...users[index], ...user, updatedAt: new Date().toISOString() };
@@ -605,6 +648,8 @@ const Storage = (() => {
     getUsers,
     getUserById,
     getUserByEmail,
+    findAccountByEmail,
+    getUserByEmailGlobal,
     saveUser,
     deleteUser,
     getLocalDateString,

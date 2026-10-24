@@ -68,17 +68,29 @@ const Auth = (() => {
     if (!adminEmail || !adminEmail.includes('@')) throw new Error('Valid admin email is required');
     if (!adminPassword || adminPassword.length < 6) throw new Error('Password must be at least 6 characters');
 
-    // Clean and validate company code (workspace slug)
-    let code = companyCode ? companyCode.trim().toUpperCase() : '';
-    if (!code) {
-      code = companyName.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8);
-      if (!code) code = `CORP${Date.now().toString().slice(-4)}`;
+    // Ensure Admin email is unique globally across all workspaces
+    const cleanEmail = adminEmail.trim().toLowerCase();
+    const existingGlobal = Storage.getUserByEmailGlobal(cleanEmail);
+    if (existingGlobal) {
+      throw new Error('An account with this email address already exists. Please sign in or use a different email.');
     }
 
-    // Check if workspace code already exists
-    const existingByCode = Storage.getCompanyByCode(code);
-    if (existingByCode) {
-      throw new Error(`A company workspace with code "${code}" already exists. Please choose a different workspace code.`);
+    // Auto-generate company code internally if not provided
+    let code = companyCode ? companyCode.trim().toUpperCase() : '';
+    if (!code) {
+      const baseSlug = companyName.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) || 'CORP';
+      code = baseSlug;
+      const companies = Storage.getCompanies();
+      let counter = 1;
+      while (companies.some(c => (c.code || '').toUpperCase() === code)) {
+        code = `${baseSlug}${counter}`;
+        counter++;
+      }
+    } else {
+      const existingByCode = Storage.getCompanyByCode(code);
+      if (existingByCode) {
+        throw new Error(`A company workspace with code "${code}" already exists. Please choose a different workspace code.`);
+      }
     }
 
     // Create the company workspace
@@ -101,7 +113,7 @@ const Auth = (() => {
     const adminUser = {
       id: `ADM-1001`,
       name: adminName.trim(),
-      email: adminEmail.trim().toLowerCase(),
+      email: cleanEmail,
       passwordHash,
       role: 'admin',
       department: 'Management',
@@ -122,51 +134,54 @@ const Auth = (() => {
     return { company: newCompany, adminUser };
   }
 
-  // Login with email, password, and companyId
-  async function login(arg1, arg2, arg3) {
+  // Automatic Workspace Resolution Login
+  // Credentials (email + password) automatically resolve company, user, and role.
+  async function login(arg1, arg2) {
     let email = '';
     let password = '';
-    let targetCompanyId = '';
 
     if (typeof arg1 === 'object' && arg1 !== null) {
       email = arg1.email;
       password = arg1.password;
-      targetCompanyId = arg1.companyId;
     } else {
       email = arg1;
       password = arg2;
-      targetCompanyId = arg3;
     }
 
     if (!email || !email.trim() || !password) {
       throw new Error('Please enter both email and password.');
     }
 
-    // Resolve company workspace to authenticate against
-    if (!targetCompanyId) {
-      targetCompanyId = Storage.getActiveCompanyId();
-    }
-    const company = Storage.getCompany(targetCompanyId) || Storage.getCompanySummary(targetCompanyId);
-    if (!company) {
-      throw new Error('Please select a valid company workspace.');
-    }
-
     const cleanEmail = email.trim().toLowerCase();
-    const user = Storage.getUserByEmail(cleanEmail, targetCompanyId);
-    if (!user) {
+
+    // 1. Search candidate accounts across all locally registered companies
+    const candidateAccounts = Storage.findAccountByEmail(cleanEmail);
+    if (!candidateAccounts || candidateAccounts.length === 0) {
       throw new Error('Invalid email or password.');
     }
+
+    // 2. Hash password and match against candidate accounts
+    const inputHash = await hashPassword(password);
+    const validMatches = candidateAccounts.filter(acc => acc.user.passwordHash === inputHash);
+
+    if (validMatches.length === 0) {
+      throw new Error('Invalid email or password.');
+    }
+
+    // 3. Ambiguity / Conflict detection for legacy records
+    if (validMatches.length > 1) {
+      throw new Error('Account conflict detected: Multiple workspaces share this email and password. Please contact support.');
+    }
+
+    const match = validMatches[0];
+    const user = match.user;
+    const targetCompanyId = match.company.id;
 
     if (user.status && user.status === 'inactive') {
       throw new Error('This account has been deactivated. Contact your administrator.');
     }
 
-    const inputHash = await hashPassword(password);
-    if (user.passwordHash !== inputHash) {
-      throw new Error('Invalid email or password.');
-    }
-
-    // Set Active Session in hcm_session with companyId
+    // 4. Set Active Session with resolved companyId and userId
     const sessionData = {
       companyId: targetCompanyId,
       userId: user.id,
@@ -178,7 +193,7 @@ const Auth = (() => {
     Storage.setSession(sessionData);
     Storage.setActiveCompanyId(targetCompanyId);
 
-    Storage.logActivity('Login', `User ${user.name} logged into ${company.name}`, user.role, user.name, targetCompanyId);
+    Storage.logActivity('User Signed In', `${user.name} signed in successfully`, user.role, user.name, targetCompanyId);
 
     return user;
   }

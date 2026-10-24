@@ -82,10 +82,9 @@ async function runTests() {
   assert(sandbox.Storage.isSetupCompleted() === false, 'Fresh storage isSetupCompleted is false');
   assert(sandbox.Storage.getCompanies().length === 0, 'Fresh storage has 0 companies');
 
-  // 2. Company 1 Setup with 0 Grace Minutes and Mon-Fri
+  // 2. Company 1 Setup (Auto-generated code, 0 Grace Minutes, Mon-Fri)
   const res1 = await sandbox.Auth.setupCompanyAndAdmin({
     companyName: 'TechVision Solutions',
-    companyCode: 'TECH',
     adminName: 'Chief Administrator',
     adminEmail: 'admin@techvision.com',
     adminPassword: 'Password123!',
@@ -98,32 +97,30 @@ async function runTests() {
   const comp1Id = res1.company.id;
   const company = sandbox.Storage.getCompany(comp1Id);
   assert(company.name === 'TechVision Solutions', 'Company 1 name saved correctly');
-  assert(company.code === 'TECH', 'Company 1 code saved correctly as TECH');
+  assert(typeof company.code === 'string' && company.code.length > 0, 'Company 1 code auto-generated successfully');
   assert(company.graceMinutes === 0, 'Grace minutes 0 preserved exactly without fallback to 15');
   assert(company.leaveQuota === 15, 'Leave quota 15 saved correctly');
 
   // 2a. Verify NO auto-login after company creation
   assert(sandbox.Storage.getSession() === null, 'Admin is NOT automatically logged in after company registration');
 
-  // 2b. Verify duplicate company code is strictly blocked
-  let duplicateCodeBlocked = false;
+  // 2b. Verify duplicate admin email registration across workspaces is blocked
+  let duplicateEmailBlocked = false;
   try {
     await sandbox.Auth.setupCompanyAndAdmin({
-      companyName: 'Tech Duplicate',
-      companyCode: 'TECH',
+      companyName: 'Duplicate Corp',
       adminName: 'Another Admin',
-      adminEmail: 'dup@techvision.com',
-      adminPassword: 'Password123!'
+      adminEmail: 'admin@techvision.com', // same email
+      adminPassword: 'Password999!'
     });
   } catch (err) {
-    if (err.message.includes('already exists')) duplicateCodeBlocked = true;
+    if (err.message.includes('already exists')) duplicateEmailBlocked = true;
   }
-  assert(duplicateCodeBlocked === true, 'Duplicate workspace code TECH is strictly blocked');
+  assert(duplicateEmailBlocked === true, 'Registration with existing email across companies is strictly blocked');
 
-  // 2c. Multi-Company Workspace Creation: Register Company 2 (Apex Innovations)
+  // 2c. Register Company 2 (Apex Innovations) with its own distinct admin
   const res2 = await sandbox.Auth.setupCompanyAndAdmin({
     companyName: 'Apex Innovations',
-    companyCode: 'APEX',
     adminName: 'Apex Admin',
     adminEmail: 'admin@apex.com',
     adminPassword: 'Password456!',
@@ -137,10 +134,10 @@ async function runTests() {
   const companies = sandbox.Storage.getCompanies();
   assert(companies.length === 2, 'Multi-company support: exactly 2 distinct workspaces stored in localStorage');
 
-  // 2d. Invalid Login Tests in Company 1
+  // 2d. Invalid Login Tests (NO company selector used)
   let badLoginFailed = false;
   try {
-    await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'WrongPassword!', companyId: comp1Id });
+    await sandbox.Auth.login('admin@techvision.com', 'WrongPassword!');
   } catch (err) {
     if (err.message === 'Invalid email or password.') badLoginFailed = true;
   }
@@ -148,36 +145,30 @@ async function runTests() {
 
   let badEmailFailed = false;
   try {
-    await sandbox.Auth.login({ email: 'unknown@techvision.com', password: 'Password123!', companyId: comp1Id });
+    await sandbox.Auth.login('unknown@nowhere.com', 'Password123!');
   } catch (err) {
     if (err.message === 'Invalid email or password.') badEmailFailed = true;
   }
   assert(badEmailFailed === true, 'Login with nonexistent email fails with exact message "Invalid email or password."');
 
-  // 2e. Cross-workspace authentication isolation:
-  // Admin 1 (admin@techvision.com) trying to log into Company 2 (Apex) MUST fail
-  let crossLoginFailed = false;
-  try {
-    await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp2Id });
-  } catch (err) {
-    if (err.message === 'Invalid email or password.') crossLoginFailed = true;
-  }
-  assert(crossLoginFailed === true, 'Cross-workspace login blocked: Company 1 admin cannot login to Company 2');
+  // 2e. Automatic Workspace Resolution: Login to Company 1 using ONLY email and password
+  const adminUser1 = await sandbox.Auth.login('admin@techvision.com', 'Password123!');
+  assert(adminUser1.role === 'admin', 'Admin 1 successfully logged in with role: "admin"');
+  const session1 = sandbox.Storage.getSession();
+  assert(session1 !== null && session1.companyId === comp1Id, 'Credentials automatically resolved Company 1 workspace (comp1Id)');
 
-  // 2f. Successful Admin Login to Company 1
-  const adminUser = await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp1Id });
-  assert(adminUser.role === 'admin', 'Admin successfully logged in with role: "admin" to Company 1');
-  const activeSession = sandbox.Storage.getSession();
-  assert(activeSession !== null && activeSession.role === 'admin' && activeSession.companyId === comp1Id, 'Active session saved in hcm_session with correct companyId');
-
-  // 2g. Admin Logout Test
+  // 2f. Logout and Login to Company 2 using ONLY email and password
   sandbox.Auth.logout();
   assert(sandbox.Storage.getSession() === null, 'Session removed from hcm_session upon logout');
-  assert(sandbox.Storage.getCompany(comp1Id).name === 'TechVision Solutions', 'Company information preserved after logout');
-  assert(sandbox.Storage.getUsers(comp1Id).length === 1, 'Admin user account preserved after logout');
+
+  const adminUser2 = await sandbox.Auth.login('admin@apex.com', 'Password456!');
+  assert(adminUser2.role === 'admin', 'Admin 2 successfully logged in with role: "admin"');
+  const session2 = sandbox.Storage.getSession();
+  assert(session2 !== null && session2.companyId === comp2Id, 'Credentials automatically resolved Company 2 workspace (comp2Id)');
 
   // Log back in as Company 1 admin to manage employees
-  await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp1Id });
+  sandbox.Auth.logout();
+  await sandbox.Auth.login('admin@techvision.com', 'Password123!');
 
   // 3. Employee Creation & ID Sequence in Company 1
   const emp1 = await sandbox.EmployeeManager.createEmployee({
@@ -208,13 +199,15 @@ async function runTests() {
   });
   assert(emp2.id === 'EMP-1002', 'Sequential ID never reuses deleted EMP-1001 (generated EMP-1002)');
 
-  // 3a. Admin Logout and Employee Login Flow
+  // 3a. Admin Logout and Employee Login Flow with ONLY Email & Password
   sandbox.Auth.logout();
   assert(sandbox.Storage.getSession() === null, 'Admin session cleared on logout before employee login');
 
-  const empUser = await sandbox.Auth.login({ email: 'jane@techvision.com', password: 'password123', companyId: comp1Id });
+  // Employee logs in with ONLY email and password, NO company selector
+  const empUser = await sandbox.Auth.login('jane@techvision.com', 'password123');
   assert(empUser.role === 'employee', 'Employee successfully logged in with role: "employee"');
-  assert(sandbox.Storage.getSession().userId === emp2.id, 'Employee session active in hcm_session');
+  const empSession = sandbox.Storage.getSession();
+  assert(empSession.userId === emp2.id && empSession.companyId === comp1Id, 'Employee session automatically resolved to Company 1 workspace');
 
   // 3b. Role-Based Navigation Guard Test (Employee cannot access Admin pages)
   sandbox.window.location.href = '';
@@ -237,13 +230,13 @@ async function runTests() {
   assert(sandbox.window.location.replaceTarget.includes('index.html'), 'Unauthenticated user redirected to index.html');
 
   // 3f. Switch Workspace Flow
-  await sandbox.Auth.login({ email: 'admin@apex.com', password: 'Password456!', companyId: comp2Id });
+  await sandbox.Auth.login('admin@apex.com', 'Password456!');
   assert(sandbox.Storage.getSession().companyId === comp2Id, 'Logged into Apex Innovations workspace');
   sandbox.Auth.switchCompany();
   assert(sandbox.Storage.getSession() === null, 'Switch Workspace successfully terminated session');
 
   // Log back in as TechVision admin for attendance and leave calculations
-  await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp1Id });
+  await sandbox.Auth.login('admin@techvision.com', 'Password123!');
 
   // 4. Grace Period 0 Evaluation
   // Office starts 09:00, grace 0. 09:00:00 -> on time. 09:00:01 -> late.

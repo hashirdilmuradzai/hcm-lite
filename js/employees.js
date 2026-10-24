@@ -69,8 +69,8 @@ const EmployeeManager = (() => {
     if (!name || !name.trim()) throw new Error('Employee name is required.');
     if (!email || !email.includes('@')) throw new Error('Valid email address is required.');
 
-    // Check duplicate email
-    const existing = Storage.getUserByEmail(email);
+    // Check duplicate email globally across all company workspaces
+    const existing = Storage.getUserByEmailGlobal ? Storage.getUserByEmailGlobal(email) : Storage.getUserByEmail(email);
     if (existing) throw new Error('An account with this email address already exists.');
 
     const parsedSalary = parseFloat(salary);
