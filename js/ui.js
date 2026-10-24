@@ -205,6 +205,12 @@ const UI = (() => {
       year: 'numeric'
     });
     dateElements.forEach(el => { el.textContent = formattedDate; });
+
+    // Render copyright footer into main container if present
+    const mainWrapper = document.querySelector('.main-wrapper') || document.querySelector('.content-body');
+    if (mainWrapper) {
+      renderFooter(mainWrapper);
+    }
   }
 
   function renderSidebarContent(sidebarEl, activePage, user) {
@@ -360,6 +366,10 @@ const UI = (() => {
               </div>
             </div>
             <div class="profile-dropdown-list">
+              <button type="button" class="profile-dropdown-item" id="topbar-switch-workspace-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+                <span>Switch Workspace</span>
+              </button>
               <button type="button" class="profile-dropdown-item" id="topbar-change-pwd-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-1.5 1.5L16 7l-2-2m-2 2l-2-2m-2 2l-2-2m-2 2L2 14v8h8l8.5-8.5"></path></svg>
                 <span>Change Password</span>
@@ -379,6 +389,7 @@ const UI = (() => {
 
     const container = topbarEl.querySelector('#topbar-profile-container');
     const trigger = topbarEl.querySelector('#topbar-profile-trigger');
+    const switchBtn = topbarEl.querySelector('#topbar-switch-workspace-btn');
     const pwdBtn = topbarEl.querySelector('#topbar-change-pwd-btn');
     const logoutBtn = topbarEl.querySelector('#topbar-logout-btn');
 
@@ -395,6 +406,19 @@ const UI = (() => {
           trigger.setAttribute('aria-expanded', 'false');
         }
       });
+    }
+
+    if (switchBtn) {
+      switchBtn.onclick = () => {
+        if (container) container.classList.remove('open');
+        showConfirmModal({
+          title: 'Switch Workspace',
+          message: 'This will end your current session and return to workspace selection. Continue?',
+          confirmText: 'Switch Workspace',
+          isDestructive: false,
+          onConfirm: () => Auth.switchCompany()
+        });
+      };
     }
 
     if (pwdBtn) {
@@ -509,6 +533,26 @@ const UI = (() => {
       .replace(/'/g, '&#039;');
   }
 
+  // Copyright Footer Generator (Shared & Minimal)
+  function getFooterHTML(extraClass = '') {
+    const year = new Date().getFullYear();
+    return `
+      <footer class="app-copyright-footer ${extraClass}" role="contentinfo">
+        <p class="copyright-text">
+          &copy; ${year} HCM Lite. Developed by <a href="https://github.com/hashirdilmuradzai/" target="_blank" rel="noopener noreferrer" class="copyright-link">Hashir Dilmurad Zai</a>
+        </p>
+      </footer>
+    `;
+  }
+
+  function renderFooter(containerEl, extraClass = '') {
+    if (!containerEl) return;
+    if (containerEl.querySelector('.app-copyright-footer')) return; // Avoid duplicates
+    const div = document.createElement('div');
+    div.innerHTML = getFooterHTML(extraClass);
+    containerEl.appendChild(div.firstElementChild);
+  }
+
   return {
     ICONS,
     showToast,
@@ -518,6 +562,8 @@ const UI = (() => {
     initCommonLayout,
     getInitials,
     escapeHTML,
-    showChangePasswordModal
+    showChangePasswordModal,
+    getFooterHTML,
+    renderFooter
   };
 })();

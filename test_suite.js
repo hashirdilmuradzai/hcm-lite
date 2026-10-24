@@ -8,7 +8,9 @@ const localStorageMock = {
   getItem: (key) => localStorageStore[key] || null,
   setItem: (key, val) => { localStorageStore[key] = String(val); },
   removeItem: (key) => { delete localStorageStore[key]; },
-  clear: () => { Object.keys(localStorageStore).forEach(k => delete localStorageStore[k]); }
+  clear: () => { Object.keys(localStorageStore).forEach(k => delete localStorageStore[k]); },
+  key: (i) => Object.keys(localStorageStore)[i] || null,
+  get length() { return Object.keys(localStorageStore).length; }
 };
 
 const windowMock = {
@@ -78,10 +80,12 @@ async function runTests() {
   // 1. Initial State
   sandbox.Storage.clearAllData();
   assert(sandbox.Storage.isSetupCompleted() === false, 'Fresh storage isSetupCompleted is false');
+  assert(sandbox.Storage.getCompanies().length === 0, 'Fresh storage has 0 companies');
 
-  // 2. Company Setup with 0 Grace Minutes and Mon-Fri
-  await sandbox.Auth.setupCompanyAndAdmin({
+  // 2. Company 1 Setup with 0 Grace Minutes and Mon-Fri
+  const res1 = await sandbox.Auth.setupCompanyAndAdmin({
     companyName: 'TechVision Solutions',
+    companyCode: 'TECH',
     adminName: 'Chief Administrator',
     adminEmail: 'admin@techvision.com',
     adminPassword: 'Password123!',
@@ -91,32 +95,52 @@ async function runTests() {
     workingDays: [1, 2, 3, 4, 5]
   });
 
-  const company = sandbox.Storage.getCompany();
-  assert(company.name === 'TechVision Solutions', 'Company name saved correctly');
+  const comp1Id = res1.company.id;
+  const company = sandbox.Storage.getCompany(comp1Id);
+  assert(company.name === 'TechVision Solutions', 'Company 1 name saved correctly');
+  assert(company.code === 'TECH', 'Company 1 code saved correctly as TECH');
   assert(company.graceMinutes === 0, 'Grace minutes 0 preserved exactly without fallback to 15');
   assert(company.leaveQuota === 15, 'Leave quota 15 saved correctly');
 
   // 2a. Verify NO auto-login after company creation
   assert(sandbox.Storage.getSession() === null, 'Admin is NOT automatically logged in after company registration');
 
-  // 2b. Verify prevent company setup from running again
-  let duplicateCompanyBlocked = false;
+  // 2b. Verify duplicate company code is strictly blocked
+  let duplicateCodeBlocked = false;
   try {
     await sandbox.Auth.setupCompanyAndAdmin({
-      companyName: 'Second Company',
+      companyName: 'Tech Duplicate',
+      companyCode: 'TECH',
       adminName: 'Another Admin',
-      adminEmail: 'admin2@techvision.com',
+      adminEmail: 'dup@techvision.com',
       adminPassword: 'Password123!'
     });
   } catch (err) {
-    if (err.message.includes('already configured')) duplicateCompanyBlocked = true;
+    if (err.message.includes('already exists')) duplicateCodeBlocked = true;
   }
-  assert(duplicateCompanyBlocked === true, 'Duplicate company creation is strictly blocked when company exists');
+  assert(duplicateCodeBlocked === true, 'Duplicate workspace code TECH is strictly blocked');
 
-  // 2c. Invalid Admin Login Test
+  // 2c. Multi-Company Workspace Creation: Register Company 2 (Apex Innovations)
+  const res2 = await sandbox.Auth.setupCompanyAndAdmin({
+    companyName: 'Apex Innovations',
+    companyCode: 'APEX',
+    adminName: 'Apex Admin',
+    adminEmail: 'admin@apex.com',
+    adminPassword: 'Password456!',
+    startTime: '08:30',
+    graceMinutes: 10,
+    leaveQuota: 20,
+    workingDays: [1, 2, 3, 4, 5]
+  });
+
+  const comp2Id = res2.company.id;
+  const companies = sandbox.Storage.getCompanies();
+  assert(companies.length === 2, 'Multi-company support: exactly 2 distinct workspaces stored in localStorage');
+
+  // 2d. Invalid Login Tests in Company 1
   let badLoginFailed = false;
   try {
-    await sandbox.Auth.login('admin@techvision.com', 'WrongPassword!');
+    await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'WrongPassword!', companyId: comp1Id });
   } catch (err) {
     if (err.message === 'Invalid email or password.') badLoginFailed = true;
   }
@@ -124,27 +148,38 @@ async function runTests() {
 
   let badEmailFailed = false;
   try {
-    await sandbox.Auth.login('unknown@techvision.com', 'Password123!');
+    await sandbox.Auth.login({ email: 'unknown@techvision.com', password: 'Password123!', companyId: comp1Id });
   } catch (err) {
     if (err.message === 'Invalid email or password.') badEmailFailed = true;
   }
   assert(badEmailFailed === true, 'Login with nonexistent email fails with exact message "Invalid email or password."');
 
-  // 2d. Successful Admin Login
-  const adminUser = await sandbox.Auth.login('admin@techvision.com', 'Password123!');
-  assert(adminUser.role === 'admin', 'Admin successfully logged in with role: "admin"');
-  assert(sandbox.Storage.getSession() !== null && sandbox.Storage.getSession().role === 'admin', 'Active session saved in hcm_session');
+  // 2e. Cross-workspace authentication isolation:
+  // Admin 1 (admin@techvision.com) trying to log into Company 2 (Apex) MUST fail
+  let crossLoginFailed = false;
+  try {
+    await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp2Id });
+  } catch (err) {
+    if (err.message === 'Invalid email or password.') crossLoginFailed = true;
+  }
+  assert(crossLoginFailed === true, 'Cross-workspace login blocked: Company 1 admin cannot login to Company 2');
 
-  // 2e. Admin Logout Test
+  // 2f. Successful Admin Login to Company 1
+  const adminUser = await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp1Id });
+  assert(adminUser.role === 'admin', 'Admin successfully logged in with role: "admin" to Company 1');
+  const activeSession = sandbox.Storage.getSession();
+  assert(activeSession !== null && activeSession.role === 'admin' && activeSession.companyId === comp1Id, 'Active session saved in hcm_session with correct companyId');
+
+  // 2g. Admin Logout Test
   sandbox.Auth.logout();
   assert(sandbox.Storage.getSession() === null, 'Session removed from hcm_session upon logout');
-  assert(sandbox.Storage.getCompany().name === 'TechVision Solutions', 'Company information preserved after logout');
-  assert(sandbox.Storage.getUsers().length === 1, 'Admin user account preserved after logout');
+  assert(sandbox.Storage.getCompany(comp1Id).name === 'TechVision Solutions', 'Company information preserved after logout');
+  assert(sandbox.Storage.getUsers(comp1Id).length === 1, 'Admin user account preserved after logout');
 
-  // Log back in as admin to manage employees
-  await sandbox.Auth.login('admin@techvision.com', 'Password123!');
+  // Log back in as Company 1 admin to manage employees
+  await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp1Id });
 
-  // 3. Employee Creation & ID Sequence
+  // 3. Employee Creation & ID Sequence in Company 1
   const emp1 = await sandbox.EmployeeManager.createEmployee({
     name: 'John Doe',
     email: 'john@techvision.com',
@@ -155,6 +190,10 @@ async function runTests() {
     joiningDate: '2026-01-01'
   });
   assert(emp1.id === 'EMP-1001', 'First employee ID is EMP-1001');
+
+  // Verify Company 2 users are completely isolated (only its admin, 0 employees)
+  const comp2Users = sandbox.Storage.getUsers(comp2Id);
+  assert(comp2Users.length === 1 && comp2Users[0].email === 'admin@apex.com', 'Workspace data isolation: Company 2 has 0 employees, unaffected by Company 1 additions');
 
   // Delete emp1 and create emp2 -> must generate EMP-1002, NOT reusing EMP-1001
   sandbox.Storage.deleteUser(emp1.id);
@@ -173,7 +212,7 @@ async function runTests() {
   sandbox.Auth.logout();
   assert(sandbox.Storage.getSession() === null, 'Admin session cleared on logout before employee login');
 
-  const empUser = await sandbox.Auth.login('jane@techvision.com', 'password123');
+  const empUser = await sandbox.Auth.login({ email: 'jane@techvision.com', password: 'password123', companyId: comp1Id });
   assert(empUser.role === 'employee', 'Employee successfully logged in with role: "employee"');
   assert(sandbox.Storage.getSession().userId === emp2.id, 'Employee session active in hcm_session');
 
@@ -197,8 +236,14 @@ async function runTests() {
   assert(unauthAccess === null, 'Unauthenticated access blocked by requireAuth()');
   assert(sandbox.window.location.replaceTarget.includes('index.html'), 'Unauthenticated user redirected to index.html');
 
-  // Log back in as admin for subsequent attendance and leave tests
-  await sandbox.Auth.login('admin@techvision.com', 'Password123!');
+  // 3f. Switch Workspace Flow
+  await sandbox.Auth.login({ email: 'admin@apex.com', password: 'Password456!', companyId: comp2Id });
+  assert(sandbox.Storage.getSession().companyId === comp2Id, 'Logged into Apex Innovations workspace');
+  sandbox.Auth.switchCompany();
+  assert(sandbox.Storage.getSession() === null, 'Switch Workspace successfully terminated session');
+
+  // Log back in as TechVision admin for attendance and leave calculations
+  await sandbox.Auth.login({ email: 'admin@techvision.com', password: 'Password123!', companyId: comp1Id });
 
   // 4. Grace Period 0 Evaluation
   // Office starts 09:00, grace 0. 09:00:00 -> on time. 09:00:01 -> late.
@@ -211,7 +256,6 @@ async function runTests() {
   // Check in 09:00:00, check out 13:59:55 (4h 59m 55s = 4.9986h) -> rounded 5.00h, but raw < 5h -> MUST BE Half Day
   const checkInTime = new Date(2026, 9, 20, 9, 0, 0).getTime();
   const under5hOutTime = checkInTime + (4 * 3600 + 59 * 60 + 55) * 1000;
-  const exactly5hOutTime = checkInTime + (5 * 3600 * 1000);
 
   const testAtt1 = {
     id: 'ATT-TEST-1',
@@ -233,8 +277,6 @@ async function runTests() {
 
   // 6. Cross-Year Leave Calculation
   // Spans from 2026-12-30 (Wed) to 2027-01-05 (Tue)
-  // 2026: Dec 30 (Wed), Dec 31 (Thu) -> 2 working days in 2026
-  // 2027: Jan 01 (Fri), Jan 04 (Mon), Jan 05 (Tue) -> 3 working days in 2027
   const crossYearDays = sandbox.Leave.calculateWorkingDaysByYear('2026-12-30', '2027-01-05', company, []);
   assert(crossYearDays[2026] === 2, 'Cross-year leave correctly allocates 2 working days to 2026');
   assert(crossYearDays[2027] === 3, 'Cross-year leave correctly allocates 3 working days to 2027');
@@ -265,9 +307,18 @@ async function runTests() {
   const todayStats = sandbox.Attendance.getTodayStats();
   assert(todayStats.totalEmployees === 1, 'Today stats only counts 1 active employee (EMP-1002), ignoring deleted EMP-1001');
 
-  // 9. Clean wipe for delivery
+  // 9. Universal Copyright Footer Verification
+  const footerHtml = sandbox.UI.getFooterHTML();
+  const currentYear = new Date().getFullYear();
+  assert(footerHtml.includes(String(currentYear)), `Footer contains current dynamic year: ${currentYear}`);
+  assert(footerHtml.includes('HCM Lite. Developed by'), 'Footer contains "HCM Lite. Developed by"');
+  assert(footerHtml.includes('href="https://github.com/hashirdilmuradzai/"'), 'Footer contains hyperlink to https://github.com/hashirdilmuradzai/');
+  assert(footerHtml.includes('target="_blank"') && footerHtml.includes('rel="noopener noreferrer"'), 'Footer hyperlink opens in a new tab with security attributes');
+
+  // 10. Clean wipe for final delivery
   sandbox.Storage.clearAllData();
   assert(sandbox.Storage.getUsers().length === 0, 'Data successfully wiped clean: users empty');
+  assert(sandbox.Storage.getCompanies().length === 0, 'Data successfully wiped clean: companies empty');
   assert(sandbox.Storage.isSetupCompleted() === false, 'Data successfully wiped clean: isSetupCompleted false');
 
   console.log(`\n=== RESULTS: ${passed} PASSED, ${failed} FAILED ===`);

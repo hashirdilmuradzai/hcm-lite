@@ -236,6 +236,12 @@ const Reports = (() => {
               </tbody>
             </table>
           </div>
+
+          <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border); text-align: center;">
+            <p style="font-size: 0.75rem; color: var(--color-text-muted); margin: 0;">
+              &copy; ${new Date().getFullYear()} HCM Lite. Developed by <a href="https://github.com/hashirdilmuradzai/" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary-accent); text-decoration: none;">Hashir Dilmurad Zai</a>
+            </p>
+          </div>
         </div>
         <div class="modal-footer no-print">
           <button class="btn btn-outline" id="btn-close-report">Close</button>

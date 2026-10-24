@@ -17,25 +17,129 @@ const App = (() => {
     return 'index';
   }
 
-  // --- PAGE 1: INDEX (LOGIN & FIRST-RUN COMPANY SETUP) ---
+  // --- PAGE 1: INDEX (LOGIN & MULTI-COMPANY WORKSPACE SETUP) ---
   function initIndexPage() {
     UI.initTheme();
 
-    const isFirstRun = Auth.checkFirstRun();
+    // Dynamically set current year on auth footer
+    const yearEl = document.getElementById('auth-copyright-year');
+    if (yearEl) {
+      yearEl.textContent = new Date().getFullYear();
+    }
+
     const setupCard = document.getElementById('first-run-setup-card');
     const loginCard = document.getElementById('login-card');
+    const tabBtnSignIn = document.getElementById('tab-btn-signin');
+    const tabBtnCreate = document.getElementById('tab-btn-create-company');
+    const linkGoToRegister = document.getElementById('link-go-to-register');
+    const linkGoToLogin = document.getElementById('link-go-to-login');
 
-    if (isFirstRun) {
-      if (setupCard) setupCard.style.display = 'block';
-      if (loginCard) loginCard.style.display = 'none';
-      setupFirstRunForm();
-    } else {
-      if (setupCard) setupCard.style.display = 'none';
-      if (loginCard) loginCard.style.display = 'block';
-      // Check if session already active
+    const companies = Storage.getCompanies();
+    const hasCompanies = companies.length > 0;
+
+    // View switching function
+    function setAuthView(view, targetCompanyId = null) {
+      if (view === 'create') {
+        if (tabBtnCreate) {
+          tabBtnCreate.classList.add('active');
+          tabBtnCreate.setAttribute('aria-selected', 'true');
+        }
+        if (tabBtnSignIn) {
+          tabBtnSignIn.classList.remove('active');
+          tabBtnSignIn.setAttribute('aria-selected', 'false');
+        }
+        if (setupCard) setupCard.style.display = 'block';
+        if (loginCard) loginCard.style.display = 'none';
+
+        const nameInput = document.getElementById('setup-company-name');
+        if (nameInput) setTimeout(() => nameInput.focus(), 50);
+      } else {
+        // Sign In View
+        if (tabBtnSignIn) {
+          tabBtnSignIn.classList.add('active');
+          tabBtnSignIn.setAttribute('aria-selected', 'true');
+        }
+        if (tabBtnCreate) {
+          tabBtnCreate.classList.remove('active');
+          tabBtnCreate.setAttribute('aria-selected', 'false');
+        }
+        if (loginCard) loginCard.style.display = 'block';
+        if (setupCard) setupCard.style.display = 'none';
+
+        populateCompanySelector(targetCompanyId);
+      }
+    }
+
+    // Populate Company Workspace dropdown
+    function populateCompanySelector(selectedCompanyId = null) {
+      const select = document.getElementById('login-company-select');
+      const badgeTitle = document.getElementById('login-company-title');
+      const currentCompanies = Storage.getCompanies();
+
+      if (!select) return;
+
+      select.innerHTML = '';
+      if (currentCompanies.length === 0) {
+        select.innerHTML = '<option value="">No registered companies yet</option>';
+        if (badgeTitle) badgeTitle.textContent = 'No Workspace';
+        return;
+      }
+
+      let activeId = selectedCompanyId || Storage.getActiveCompanyId() || currentCompanies[0].id;
+      // Ensure activeId actually exists in list
+      if (!currentCompanies.some(c => c.id === activeId)) {
+        activeId = currentCompanies[0].id;
+      }
+
+      currentCompanies.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.name} (${c.code || 'ORG'})`;
+        if (c.id === activeId) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      const selected = currentCompanies.find(c => c.id === activeId) || currentCompanies[0];
+      if (badgeTitle && selected) {
+        badgeTitle.textContent = selected.name;
+      }
+      Storage.setActiveCompanyId(selected ? selected.id : '');
+
+      select.onchange = () => {
+        const chosenId = select.value;
+        const chosen = currentCompanies.find(c => c.id === chosenId);
+        if (chosen) {
+          Storage.setActiveCompanyId(chosen.id);
+          if (badgeTitle) badgeTitle.textContent = chosen.name;
+        }
+      };
+    }
+
+    // Wire tab navigation and switcher links
+    if (tabBtnSignIn) {
+      tabBtnSignIn.onclick = () => setAuthView('signin');
+    }
+    if (tabBtnCreate) {
+      tabBtnCreate.onclick = () => setAuthView('create');
+    }
+    if (linkGoToRegister) {
+      linkGoToRegister.onclick = (e) => {
+        e.preventDefault();
+        setAuthView('create');
+      };
+    }
+    if (linkGoToLogin) {
+      linkGoToLogin.onclick = (e) => {
+        e.preventDefault();
+        setAuthView('signin');
+      };
+    }
+
+    // Check active authenticated session
+    if (hasCompanies) {
       const session = Storage.getSession();
-      if (session && session.userId) {
-        const user = Storage.getUserById(session.userId);
+      if (session && session.userId && session.companyId) {
+        const user = Storage.getUserById(session.userId, session.companyId);
         if (user && user.status !== 'inactive') {
           if (user.role === 'admin') {
             window.location.replace('pages/admin.html');
@@ -48,22 +152,46 @@ const App = (() => {
           Storage.clearSession();
         }
       }
+    }
 
-      setupLoginForm();
+    // Wire up forms
+    setupFirstRunForm(setAuthView);
+    setupLoginForm();
+
+    // Default view: if no company exists yet, show Create view; otherwise Sign In view
+    if (!hasCompanies) {
+      setAuthView('create');
+    } else {
+      setAuthView('signin');
     }
   }
 
-  function setupFirstRunForm() {
+  function setupFirstRunForm(setAuthView) {
     const form = document.getElementById('first-run-form');
     if (!form) return;
 
+    const companyCodeInput = document.getElementById('setup-company-code');
+    const codeErrorEl = document.getElementById('setup-company-code-error');
+
+    // Live validation for company code input
+    if (companyCodeInput) {
+      companyCodeInput.oninput = () => {
+        companyCodeInput.value = companyCodeInput.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+        if (codeErrorEl) codeErrorEl.style.display = 'none';
+      };
+    }
+
     form.onsubmit = async (e) => {
       e.preventDefault();
+      if (codeErrorEl) codeErrorEl.style.display = 'none';
+
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Setting up workspace...';
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.textContent = 'Creating workspace...';
 
       const companyName = document.getElementById('setup-company-name').value;
+      const companyCodeRaw = companyCodeInput ? companyCodeInput.value.trim().toUpperCase() : '';
       const adminName = document.getElementById('setup-admin-name').value;
       const adminEmail = document.getElementById('setup-admin-email').value;
       const adminPassword = document.getElementById('setup-admin-pwd').value;
@@ -81,20 +209,35 @@ const App = (() => {
       if (workingDays.length === 0) {
         UI.showToast('Please select at least one weekly working day.', 'error');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Company & Admin Account';
+        submitBtn.textContent = originalBtnText;
         return;
       }
 
       if (adminPassword !== confirmPassword) {
         UI.showToast('Passwords do not match.', 'error');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Company & Admin Account';
+        submitBtn.textContent = originalBtnText;
+        return;
+      }
+
+      // Check if company code is unique
+      const existingCompany = Storage.getCompanyByCode(companyCodeRaw);
+      if (existingCompany) {
+        if (codeErrorEl) {
+          codeErrorEl.textContent = `Workspace code "${companyCodeRaw}" already exists. Please choose a different code.`;
+          codeErrorEl.style.display = 'block';
+        }
+        UI.showToast(`Workspace code "${companyCodeRaw}" is already in use.`, 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+        if (companyCodeInput) companyCodeInput.focus();
         return;
       }
 
       try {
-        await Auth.setupCompanyAndAdmin({
+        const result = await Auth.setupCompanyAndAdmin({
           companyName,
+          companyCode: companyCodeRaw,
           adminName,
           adminEmail,
           adminPassword,
@@ -104,23 +247,28 @@ const App = (() => {
           workingDays
         });
 
-        UI.showToast('Company created successfully. Please sign in to continue.', 'success', 4000);
-        setTimeout(() => {
-          initIndexPage();
-          const emailInput = document.getElementById('login-email');
-          if (emailInput) {
-            emailInput.value = adminEmail.trim().toLowerCase();
-            const pwdInput = document.getElementById('login-password');
-            if (pwdInput) {
-              pwdInput.value = '';
-              pwdInput.focus();
-            }
-          }
-        }, 500);
+        UI.showToast('Company created successfully. Sign in to your workspace.', 'success', 4500);
+        form.reset();
+
+        // Switch to Sign In view, pre-selecting the created company
+        if (setAuthView) {
+          setAuthView('signin', result.company.id);
+        }
+
+        const emailInput = document.getElementById('login-email');
+        if (emailInput) {
+          emailInput.value = adminEmail.trim().toLowerCase();
+        }
+        const pwdInput = document.getElementById('login-password');
+        if (pwdInput) {
+          pwdInput.value = '';
+          pwdInput.focus();
+        }
       } catch (err) {
         UI.showToast(err.message, 'error');
+      } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Company & Admin Account';
+        submitBtn.textContent = originalBtnText;
       }
     };
   }
@@ -129,23 +277,18 @@ const App = (() => {
     const form = document.getElementById('login-form');
     if (!form) return;
 
-    const company = Storage.getCompany();
-    const titleEl = document.getElementById('login-company-title');
-    if (titleEl && company && company.name) {
-      titleEl.textContent = company.name;
-    }
-
     const emailInput = document.getElementById('login-email');
     const pwdInput = document.getElementById('login-password');
     const togglePwdBtn = document.getElementById('toggle-login-pwd');
     const rememberMeCb = document.getElementById('login-remember-me');
     const errorAlert = document.getElementById('login-error-alert');
     const errorText = document.getElementById('login-error-text');
+    const companySelect = document.getElementById('login-company-select');
 
     // Restore remembered email if available
     try {
       const savedEmail = localStorage.getItem('hcm_remembered_email');
-      if (savedEmail && emailInput) {
+      if (savedEmail && emailInput && !emailInput.value) {
         emailInput.value = savedEmail;
         if (rememberMeCb) rememberMeCb.checked = true;
       }
@@ -165,10 +308,17 @@ const App = (() => {
     };
     if (emailInput) emailInput.oninput = clearError;
     if (pwdInput) pwdInput.oninput = clearError;
+    if (companySelect) companySelect.oninput = clearError;
 
     form.onsubmit = async (e) => {
       e.preventDefault();
       clearError();
+
+      const selectedCompanyId = companySelect ? companySelect.value : Storage.getActiveCompanyId();
+      if (!selectedCompanyId) {
+        UI.showToast('Please select a company workspace.', 'error');
+        return;
+      }
 
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.disabled = true;
@@ -184,7 +334,11 @@ const App = (() => {
       const password = pwdInput ? pwdInput.value : '';
 
       try {
-        const user = await Auth.login(email, password);
+        const user = await Auth.login({
+          email,
+          password,
+          companyId: selectedCompanyId
+        });
 
         // Handle Remember Me
         try {

@@ -64,12 +64,22 @@
         <p class="auth-tagline">Human Capital Management for High-Performing Teams</p>
       </div>
 
-      <!-- FIRST RUN SETUP CARD -->
+      <!-- AUTH TABS NAV -->
+      <nav class="auth-tabs-nav" role="tablist" aria-label="Authentication Options">
+        <button type="button" class="auth-tab-btn active" id="tab-btn-signin" role="tab" aria-selected="true" aria-controls="login-card">
+          Sign In
+        </button>
+        <button type="button" class="auth-tab-btn" id="tab-btn-create-company" role="tab" aria-selected="false" aria-controls="first-run-setup-card">
+          Create New Company
+        </button>
+      </nav>
+
+      <!-- FIRST RUN / NEW COMPANY SETUP CARD -->
       <div class="card" id="first-run-setup-card" style="display: none;">
         <div class="card-header">
           <div class="card-title-group">
-            <h2 class="card-title">Initial Workspace Setup</h2>
-            <span class="card-subtitle">Set up your company profile and create the first administrator account</span>
+            <h2 class="card-title">Create Company Workspace</h2>
+            <span class="card-subtitle">Set up a new company workspace and create its administrator account</span>
           </div>
         </div>
         <div class="card-body">
@@ -77,6 +87,13 @@
             <div class="form-group">
               <label class="form-label" for="setup-company-name">Company Name <span class="required">*</span></label>
               <input type="text" id="setup-company-name" class="form-input" required placeholder="e.g. Acme Technologies" autocomplete="organization">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="setup-company-code">Workspace ID / Company Code <span class="required">*</span></label>
+              <input type="text" id="setup-company-code" class="form-input" required placeholder="e.g. ACME" maxlength="15" autocomplete="off" style="text-transform: uppercase;">
+              <span class="form-hint">Unique company identifier for employee login (letters, numbers, dashes)</span>
+              <div class="form-error" id="setup-company-code-error" style="display: none; color: var(--color-error); font-size: var(--font-size-xs); margin-top: 4px;"></div>
             </div>
 
             <div class="form-row">
@@ -152,10 +169,14 @@
             </div>
 
             <div style="margin-top: var(--space-5);">
-              <button type="submit" class="btn btn-primary btn-full btn-lg">
+              <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-create-company-submit">
                 Create Company &amp; Admin Account
               </button>
             </div>
+
+            <p class="auth-switch-text">
+              Already have an account? <a href="#" class="auth-switch-link" id="link-go-to-login">Sign In</a>
+            </p>
           </form>
         </div>
       </div>
@@ -178,6 +199,15 @@
           </div>
 
           <form id="login-form">
+            <!-- Company Workspace Selector -->
+            <div class="form-group" id="login-workspace-group">
+              <label class="form-label" for="login-company-select">Company Workspace <span class="required">*</span></label>
+              <select id="login-company-select" class="form-select" required aria-label="Select Company Workspace">
+                <!-- Dynamically populated -->
+              </select>
+              <span class="form-hint" id="login-workspace-hint">Select the workspace you belong to</span>
+            </div>
+
             <div class="form-group">
               <label class="form-label" for="login-email">Email Address <span class="required">*</span></label>
               <input type="email" id="login-email" class="form-input" required placeholder="name@company.com" autocomplete="email">
@@ -209,13 +239,20 @@
                 Shared portal for Administrators and Employees. Role redirection is applied automatically upon sign in.
               </span>
             </div>
+
+            <p class="auth-switch-text">
+              New to HCM Lite? <a href="#" class="auth-switch-link" id="link-go-to-register">Create a company workspace</a>
+            </p>
           </form>
         </div>
       </div>
 
-      <div style="margin-top: var(--space-6); text-align: center; font-size: var(--font-size-xs); color: var(--color-text-muted);">
-        Saylani Hackathon Beginner Track • Client-Side LocalStorage Edition
-      </div>
+      <!-- UNIVERSAL COPYRIGHT FOOTER -->
+      <footer class="app-copyright-footer auth-copyright-footer" role="contentinfo">
+        <p class="copyright-text">
+          &copy; <span id="auth-copyright-year"></span> HCM Lite. Developed by <a href="https://github.com/hashirdilmuradzai/" target="_blank" rel="noopener noreferrer" class="copyright-link">Hashir Dilmurad Zai</a>
+        </p>
+      </footer>
     </div>
   </div>
 

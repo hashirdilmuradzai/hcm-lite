@@ -1,29 +1,31 @@
 /**
- * HCM Lite — LocalStorage Data Access Layer
- * Strict adherence to the official hackathon keys:
- * - hcm_company
- * - hcm_users
- * - hcm_attendance
- * - hcm_leaves
- * - hcm_session
- * Bonus keys:
- * - hcm_announcements
- * - hcm_holidays
- * - hcm_preferences
- * - hcm_activity_log
+ * HCM Lite — LocalStorage Multi-Company Data Access Layer
+ * Supports isolated company workspaces with safe, idempotent migration from single-company schema.
+ *
+ * Architecture:
+ * - hcm_companies: Registry of all company workspaces [{ id, code, name, createdAt }, ...]
+ * - hcm_session: Active authenticated session { companyId, userId, role, name, email, loginTime }
+ * - hcm_active_company_id: Selected workspace context when outside an active session
+ * - hcm_preferences: Shared browser preferences (theme: light/dark)
+ * - hcm_legacy_backup: Recoverable backup created during legacy data migration
+ *
+ * Company-scoped keys (complete namespace isolation):
+ * - hcm_{companyId}_company
+ * - hcm_{companyId}_users
+ * - hcm_{companyId}_attendance
+ * - hcm_{companyId}_leaves
+ * - hcm_{companyId}_announcements
+ * - hcm_{companyId}_holidays
+ * - hcm_{companyId}_activity_log
  */
 
 const Storage = (() => {
-  const KEYS = {
-    COMPANY: 'hcm_company',
-    USERS: 'hcm_users',
-    ATTENDANCE: 'hcm_attendance',
-    LEAVES: 'hcm_leaves',
+  const GLOBAL_KEYS = {
+    COMPANIES: 'hcm_companies',
     SESSION: 'hcm_session',
-    ANNOUNCEMENTS: 'hcm_announcements',
-    HOLIDAYS: 'hcm_holidays',
+    ACTIVE_COMPANY_ID: 'hcm_active_company_id',
     PREFERENCES: 'hcm_preferences',
-    ACTIVITY_LOG: 'hcm_activity_log'
+    LEGACY_BACKUP: 'hcm_legacy_backup'
   };
 
   // Safe JSON parse with fallback
@@ -68,45 +70,266 @@ const Storage = (() => {
     }
   }
 
-  // --- Company Settings ---
-  function getCompany() {
-    return get(KEYS.COMPANY, null);
+  // --- Automatic, Safe, Idempotent Legacy Single-Company Migration ---
+  function runLegacyMigration() {
+    try {
+      const rawLegacyCompany = localStorage.getItem('hcm_company');
+      const companies = get(GLOBAL_KEYS.COMPANIES, []);
+
+      // Migrate only if legacy single-company data exists and multi-company registry is not yet populated
+      if (rawLegacyCompany && companies.length === 0) {
+        const legacyComp = JSON.parse(rawLegacyCompany);
+        if (legacyComp && legacyComp.name) {
+          // 1. Create a recoverable backup before migration
+          const backupData = {
+            migratedAt: new Date().toISOString(),
+            company: legacyComp,
+            users: get('hcm_users', []),
+            attendance: get('hcm_attendance', []),
+            leaves: get('hcm_leaves', []),
+            announcements: get('hcm_announcements', []),
+            holidays: get('hcm_holidays', []),
+            activityLog: get('hcm_activity_log', []),
+            session: get('hcm_session', null)
+          };
+          set(GLOBAL_KEYS.LEGACY_BACKUP, backupData);
+
+          const compId = legacyComp.id || 'CMP-1001';
+          let compCode = legacyComp.code;
+          if (!compCode) {
+            compCode = legacyComp.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) || 'MAIN';
+          }
+
+          const registryEntry = {
+            id: compId,
+            code: compCode,
+            name: legacyComp.name,
+            createdAt: legacyComp.createdAt || new Date().toISOString()
+          };
+
+          // 2. Write to company registry
+          set(GLOBAL_KEYS.COMPANIES, [registryEntry]);
+
+          // 3. Move collections into company-isolated keys
+          set(`hcm_${compId}_company`, { ...legacyComp, id: compId, code: compCode });
+          set(`hcm_${compId}_users`, get('hcm_users', []));
+          set(`hcm_${compId}_attendance`, get('hcm_attendance', []));
+          set(`hcm_${compId}_leaves`, get('hcm_leaves', []));
+          set(`hcm_${compId}_announcements`, get('hcm_announcements', []));
+          set(`hcm_${compId}_holidays`, get('hcm_holidays', []));
+          set(`hcm_${compId}_activity_log`, get('hcm_activity_log', []));
+
+          // 4. Update session if active
+          const activeSession = get(GLOBAL_KEYS.SESSION, null);
+          if (activeSession && activeSession.userId) {
+            set(GLOBAL_KEYS.SESSION, { ...activeSession, companyId: compId });
+          }
+
+          setActiveCompanyId(compId);
+
+          // 5. Safely clean up raw legacy keys
+          localStorage.removeItem('hcm_company');
+          localStorage.removeItem('hcm_users');
+          localStorage.removeItem('hcm_attendance');
+          localStorage.removeItem('hcm_leaves');
+          localStorage.removeItem('hcm_announcements');
+          localStorage.removeItem('hcm_holidays');
+          localStorage.removeItem('hcm_activity_log');
+
+          console.log(`[Storage] Migrated legacy company "${legacyComp.name}" to workspace ${compId} (${compCode})`);
+        }
+      }
+    } catch (err) {
+      console.warn('[Storage] Legacy migration notice:', err);
+    }
   }
 
-  function saveCompany(companyData) {
-    const existing = getCompany() || {};
+  // Run migration on script initialization
+  runLegacyMigration();
+
+  // --- Multi-Company Registry & Workspace Management ---
+  function getCompanies() {
+    return get(GLOBAL_KEYS.COMPANIES, []);
+  }
+
+  function getCompanySummary(companyId) {
+    const list = getCompanies();
+    return list.find(c => String(c.id) === String(companyId)) || null;
+  }
+
+  function getCompanyByCode(code) {
+    if (!code) return null;
+    const clean = code.trim().toUpperCase();
+    const list = getCompanies();
+    return list.find(c => (c.code || '').trim().toUpperCase() === clean) || null;
+  }
+
+  function getCompanyByName(name) {
+    if (!name) return null;
+    const clean = name.trim().toLowerCase();
+    const list = getCompanies();
+    return list.find(c => (c.name || '').trim().toLowerCase() === clean) || null;
+  }
+
+  function getActiveCompanyId() {
+    // 1. If user is logged in, their session determines companyId
+    const session = get(GLOBAL_KEYS.SESSION, null);
+    if (session && session.companyId) {
+      return String(session.companyId);
+    }
+    // 2. Explicitly selected workspace (e.g. on login screen)
+    const selected = localStorage.getItem(GLOBAL_KEYS.ACTIVE_COMPANY_ID);
+    if (selected) {
+      return selected;
+    }
+    // 3. First registered company
+    const companies = getCompanies();
+    if (companies.length > 0) {
+      return String(companies[0].id);
+    }
+    // 4. Default fallback
+    return 'default';
+  }
+
+  function setActiveCompanyId(companyId) {
+    if (companyId) {
+      localStorage.setItem(GLOBAL_KEYS.ACTIVE_COMPANY_ID, String(companyId));
+    } else {
+      localStorage.removeItem(GLOBAL_KEYS.ACTIVE_COMPANY_ID);
+    }
+  }
+
+  function getScopedKey(baseKey, overrideCompanyId = null) {
+    const cid = overrideCompanyId || getActiveCompanyId();
+    return `hcm_${cid}_${baseKey}`;
+  }
+
+  // Create a brand new company workspace
+  function createCompanyWorkspace(companyData) {
+    const companies = getCompanies();
+
+    // Generate unique internal ID: CMP-1001, CMP-1002, etc.
+    let maxNum = 1000;
+    companies.forEach(c => {
+      const match = String(c.id).match(/CMP-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    const companyId = `CMP-${maxNum + 1}`;
+
+    // Clean and validate company code (workspace slug)
+    let companyCode = companyData.code ? companyData.code.trim().toUpperCase() : '';
+    if (!companyCode) {
+      companyCode = companyData.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8);
+      if (!companyCode) companyCode = `CORP${maxNum + 1}`;
+    }
+
+    // Check duplicate code
+    if (companies.some(c => (c.code || '').toUpperCase() === companyCode)) {
+      throw new Error(`A company with workspace code "${companyCode}" already exists. Please choose a different code.`);
+    }
+
+    const registryEntry = {
+      id: companyId,
+      code: companyCode,
+      name: companyData.name.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    companies.push(registryEntry);
+    set(GLOBAL_KEYS.COMPANIES, companies);
+
+    // Initialize isolated company settings
+    const fullCompanySettings = {
+      ...companyData,
+      id: companyId,
+      code: companyCode,
+      name: companyData.name.trim(),
+      startTime: companyData.startTime || '09:00',
+      graceMinutes: (companyData.graceMinutes !== undefined && companyData.graceMinutes !== null && companyData.graceMinutes !== '' && !isNaN(Number(companyData.graceMinutes))) ? Math.max(0, parseInt(companyData.graceMinutes, 10)) : 15,
+      workingDays: Array.isArray(companyData.workingDays) ? companyData.workingDays.map(Number) : [1, 2, 3, 4, 5],
+      leaveQuota: parseInt(companyData.leaveQuota, 10) || 18,
+      officeLat: companyData.officeLat || null,
+      officeLng: companyData.officeLng || null,
+      officeRadius: companyData.officeRadius || 150,
+      cameraVerification: !!companyData.cameraVerification,
+      gpsVerification: !!companyData.gpsVerification,
+      setupCompleted: true,
+      nextEmployeeSeq: 1000,
+      createdAt: new Date().toISOString()
+    };
+
+    set(getScopedKey('company', companyId), fullCompanySettings);
+    // Initialize empty collections for this company
+    set(getScopedKey('users', companyId), []);
+    set(getScopedKey('attendance', companyId), []);
+    set(getScopedKey('leaves', companyId), []);
+    set(getScopedKey('announcements', companyId), []);
+    set(getScopedKey('holidays', companyId), []);
+    set(getScopedKey('activity_log', companyId), []);
+
+    setActiveCompanyId(companyId);
+
+    return fullCompanySettings;
+  }
+
+  // --- Company Settings (Scoped to Active Company) ---
+  function getCompany(overrideCompanyId = null) {
+    const key = getScopedKey('company', overrideCompanyId);
+    return get(key, null);
+  }
+
+  function saveCompany(companyData, overrideCompanyId = null) {
+    const cid = overrideCompanyId || getActiveCompanyId();
+    const existing = getCompany(cid) || {};
     const updated = {
       ...existing,
       ...companyData,
       updatedAt: new Date().toISOString()
     };
-    return set(KEYS.COMPANY, updated);
+
+    // Update in registry as well if name or code changed
+    if (companyData.name || companyData.code) {
+      const companies = getCompanies();
+      const idx = companies.findIndex(c => String(c.id) === String(cid));
+      if (idx >= 0) {
+        if (companyData.name) companies[idx].name = companyData.name;
+        if (companyData.code) companies[idx].code = companyData.code;
+        set(GLOBAL_KEYS.COMPANIES, companies);
+      }
+    }
+
+    return set(getScopedKey('company', cid), updated);
   }
 
   function isSetupCompleted() {
-    const company = getCompany();
-    const users = getUsers();
-    return !!(company && company.name && users.some(u => u.role === 'admin'));
+    const companies = getCompanies();
+    return companies.length > 0;
   }
 
-  // --- Users (Admin & Employees) ---
-  function getUsers() {
-    return get(KEYS.USERS, []);
+  // --- Users (Admin & Employees Scoped to Company) ---
+  function getUsers(overrideCompanyId = null) {
+    const key = getScopedKey('users', overrideCompanyId);
+    return get(key, []);
   }
 
-  function getUserById(id) {
-    const users = getUsers();
+  function getUserById(id, overrideCompanyId = null) {
+    const users = getUsers(overrideCompanyId);
     return users.find(u => String(u.id) === String(id)) || null;
   }
 
-  function getUserByEmail(email) {
+  function getUserByEmail(email, overrideCompanyId = null) {
     if (!email) return null;
-    const users = getUsers();
-    return users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase()) || null;
+    const clean = email.trim().toLowerCase();
+    const users = getUsers(overrideCompanyId);
+    return users.find(u => u.email.trim().toLowerCase() === clean) || null;
   }
 
-  function saveUser(user) {
-    const users = getUsers();
+  function saveUser(user, overrideCompanyId = null) {
+    const key = getScopedKey('users', overrideCompanyId);
+    const users = getUsers(overrideCompanyId);
     const index = users.findIndex(u => String(u.id) === String(user.id));
     if (index >= 0) {
       users[index] = { ...users[index], ...user, updatedAt: new Date().toISOString() };
@@ -116,35 +339,18 @@ const Storage = (() => {
         createdAt: new Date().toISOString()
       });
     }
-    return set(KEYS.USERS, users);
+    return set(key, users);
   }
 
-  function deleteUser(id) {
-    const users = getUsers().filter(u => String(u.id) !== String(id));
-    set(KEYS.USERS, users);
-    // Deletion policy: We keep attendance and leave history tagged to the deleted employee ID
-    // for audit, or optionally tag them as inactive. As per business rule, we mark user inactive or remove
-    // while keeping records intact.
-    logActivity('Deleted Employee', `Removed employee account ID ${id}`, 'admin');
+  function deleteUser(id, overrideCompanyId = null) {
+    const key = getScopedKey('users', overrideCompanyId);
+    const users = getUsers(overrideCompanyId).filter(u => String(u.id) !== String(id));
+    set(key, users);
+    logActivity('Deleted Employee', `Removed employee account ID ${id}`, 'admin', '', overrideCompanyId);
     return true;
   }
 
-  // --- Attendance ---
-  function getAttendance() {
-    return get(KEYS.ATTENDANCE, []);
-  }
-
-  function getAttendanceForEmployee(empId) {
-    const all = getAttendance();
-    return all.filter(a => String(a.employeeId) === String(empId));
-  }
-
-  function getAttendanceForDate(dateStr) {
-    const all = getAttendance();
-    return all.filter(a => a.date === dateStr);
-  }
-
-  // Format local date string YYYY-MM-DD (consistent across timezones)
+  // Format local date string YYYY-MM-DD
   function getLocalDateString(d = new Date()) {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -152,14 +358,31 @@ const Storage = (() => {
     return `${year}-${month}-${day}`;
   }
 
-  function getTodayAttendanceForEmployee(empId) {
+  // --- Attendance (Scoped to Company) ---
+  function getAttendance(overrideCompanyId = null) {
+    const key = getScopedKey('attendance', overrideCompanyId);
+    return get(key, []);
+  }
+
+  function getAttendanceForEmployee(empId, overrideCompanyId = null) {
+    const all = getAttendance(overrideCompanyId);
+    return all.filter(a => String(a.employeeId) === String(empId));
+  }
+
+  function getAttendanceForDate(dateStr, overrideCompanyId = null) {
+    const all = getAttendance(overrideCompanyId);
+    return all.filter(a => a.date === dateStr);
+  }
+
+  function getTodayAttendanceForEmployee(empId, overrideCompanyId = null) {
     const today = getLocalDateString();
-    const records = getAttendanceForEmployee(empId);
+    const records = getAttendanceForEmployee(empId, overrideCompanyId);
     return records.find(r => r.date === today) || null;
   }
 
-  function saveAttendanceRecord(record) {
-    const all = getAttendance();
+  function saveAttendanceRecord(record, overrideCompanyId = null) {
+    const key = getScopedKey('attendance', overrideCompanyId);
+    const all = getAttendance(overrideCompanyId);
     const index = all.findIndex(r => String(r.id) === String(record.id) || (String(r.employeeId) === String(record.employeeId) && r.date === record.date));
     if (index >= 0) {
       all[index] = { ...all[index], ...record };
@@ -170,21 +393,23 @@ const Storage = (() => {
         createdAt: new Date().toISOString()
       });
     }
-    return set(KEYS.ATTENDANCE, all);
+    return set(key, all);
   }
 
-  // --- Leaves ---
-  function getLeaves() {
-    return get(KEYS.LEAVES, []);
+  // --- Leaves (Scoped to Company) ---
+  function getLeaves(overrideCompanyId = null) {
+    const key = getScopedKey('leaves', overrideCompanyId);
+    return get(key, []);
   }
 
-  function getLeavesForEmployee(empId) {
-    const all = getLeaves();
+  function getLeavesForEmployee(empId, overrideCompanyId = null) {
+    const all = getLeaves(overrideCompanyId);
     return all.filter(l => String(l.employeeId) === String(empId));
   }
 
-  function saveLeaveRequest(leave) {
-    const all = getLeaves();
+  function saveLeaveRequest(leave, overrideCompanyId = null) {
+    const key = getScopedKey('leaves', overrideCompanyId);
+    const all = getLeaves(overrideCompanyId);
     const index = all.findIndex(l => String(l.id) === String(leave.id));
     if (index >= 0) {
       all[index] = { ...all[index], ...leave, updatedAt: new Date().toISOString() };
@@ -195,32 +420,34 @@ const Storage = (() => {
         createdAt: new Date().toISOString()
       });
     }
-    return set(KEYS.LEAVES, all);
+    return set(key, all);
   }
 
-  // --- Session Management ---
+  // --- Session Management (Global) ---
   function getSession() {
-    return get(KEYS.SESSION, null);
+    return get(GLOBAL_KEYS.SESSION, null);
   }
 
   function setSession(sessionData) {
-    return set(KEYS.SESSION, {
+    return set(GLOBAL_KEYS.SESSION, {
       ...sessionData,
       loginTime: new Date().toISOString()
     });
   }
 
   function clearSession() {
-    return remove(KEYS.SESSION);
+    return remove(GLOBAL_KEYS.SESSION);
   }
 
-  // --- Announcements ---
-  function getAnnouncements() {
-    return get(KEYS.ANNOUNCEMENTS, []);
+  // --- Announcements (Scoped to Company) ---
+  function getAnnouncements(overrideCompanyId = null) {
+    const key = getScopedKey('announcements', overrideCompanyId);
+    return get(key, []);
   }
 
-  function saveAnnouncement(announcement) {
-    const all = getAnnouncements();
+  function saveAnnouncement(announcement, overrideCompanyId = null) {
+    const key = getScopedKey('announcements', overrideCompanyId);
+    const all = getAnnouncements(overrideCompanyId);
     const item = {
       id: announcement.id || `ANN-${Date.now()}`,
       title: announcement.title,
@@ -231,51 +458,57 @@ const Storage = (() => {
       createdAt: new Date().toISOString()
     };
     all.unshift(item);
-    return set(KEYS.ANNOUNCEMENTS, all);
+    return set(key, all);
   }
 
-  function deleteAnnouncement(id) {
-    const filtered = getAnnouncements().filter(a => String(a.id) !== String(id));
-    return set(KEYS.ANNOUNCEMENTS, filtered);
+  function deleteAnnouncement(id, overrideCompanyId = null) {
+    const key = getScopedKey('announcements', overrideCompanyId);
+    const filtered = getAnnouncements(overrideCompanyId).filter(a => String(a.id) !== String(id));
+    return set(key, filtered);
   }
 
-  // --- Holidays ---
-  function getHolidays() {
-    return get(KEYS.HOLIDAYS, []);
+  // --- Holidays (Scoped to Company) ---
+  function getHolidays(overrideCompanyId = null) {
+    const key = getScopedKey('holidays', overrideCompanyId);
+    return get(key, []);
   }
 
-  function saveHoliday(holiday) {
-    const all = getHolidays();
+  function saveHoliday(holiday, overrideCompanyId = null) {
+    const key = getScopedKey('holidays', overrideCompanyId);
+    const all = getHolidays(overrideCompanyId);
     all.push({
       id: holiday.id || `HOL-${Date.now()}`,
       name: holiday.name,
       date: holiday.date
     });
-    return set(KEYS.HOLIDAYS, all);
+    return set(key, all);
   }
 
-  function deleteHoliday(id) {
-    const filtered = getHolidays().filter(h => String(h.id) !== String(id));
-    return set(KEYS.HOLIDAYS, filtered);
+  function deleteHoliday(id, overrideCompanyId = null) {
+    const key = getScopedKey('holidays', overrideCompanyId);
+    const filtered = getHolidays(overrideCompanyId).filter(h => String(h.id) !== String(id));
+    return set(key, filtered);
   }
 
-  // --- Preferences (Dark Mode, etc.) ---
+  // --- Preferences (Shared Theme) ---
   function getPreferences() {
-    return get(KEYS.PREFERENCES, { theme: 'light' });
+    return get(GLOBAL_KEYS.PREFERENCES, { theme: 'light' });
   }
 
   function savePreferences(prefs) {
     const existing = getPreferences();
-    return set(KEYS.PREFERENCES, { ...existing, ...prefs });
+    return set(GLOBAL_KEYS.PREFERENCES, { ...existing, ...prefs });
   }
 
-  // --- Activity Audit Log ---
-  function getActivityLog() {
-    return get(KEYS.ACTIVITY_LOG, []);
+  // --- Activity Audit Log (Scoped to Company) ---
+  function getActivityLog(overrideCompanyId = null) {
+    const key = getScopedKey('activity_log', overrideCompanyId);
+    return get(key, []);
   }
 
-  function logActivity(action, details, actorRole = 'system', actorName = '') {
-    const all = getActivityLog();
+  function logActivity(action, details, actorRole = 'system', actorName = '', overrideCompanyId = null) {
+    const key = getScopedKey('activity_log', overrideCompanyId);
+    const all = getActivityLog(overrideCompanyId);
     const entry = {
       id: `ACT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       action,
@@ -285,58 +518,87 @@ const Storage = (() => {
       timestamp: new Date().toISOString()
     };
     all.unshift(entry);
-    // Keep max 100 items
     if (all.length > 100) all.length = 100;
-    return set(KEYS.ACTIVITY_LOG, all);
+    return set(key, all);
   }
 
-  // --- Backup & Restore ---
-  function exportAllData() {
+  // --- Backup & Restore (Scoped or Full) ---
+  function exportAllData(companyId = null) {
+    const cid = companyId || getActiveCompanyId();
     const exportObj = {
-      version: '1.0',
+      version: '2.0',
+      workspaceType: 'multi-company',
       exportedAt: new Date().toISOString(),
-      company: getCompany(),
-      users: getUsers(),
-      attendance: getAttendance(),
-      leaves: getLeaves(),
-      announcements: getAnnouncements(),
-      holidays: getHolidays(),
+      companyId: cid,
+      company: getCompany(cid),
+      users: getUsers(cid),
+      attendance: getAttendance(cid),
+      leaves: getLeaves(cid),
+      announcements: getAnnouncements(cid),
+      holidays: getHolidays(cid),
       preferences: getPreferences(),
-      activityLog: getActivityLog()
+      activityLog: getActivityLog(cid)
     };
     return JSON.stringify(exportObj, null, 2);
   }
 
-  function importAllData(jsonString) {
+  function importAllData(jsonString, targetCompanyId = null) {
     try {
       const data = JSON.parse(jsonString);
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid JSON format');
       }
-      if (data.company) set(KEYS.COMPANY, data.company);
-      if (Array.isArray(data.users)) set(KEYS.USERS, data.users);
-      if (Array.isArray(data.attendance)) set(KEYS.ATTENDANCE, data.attendance);
-      if (Array.isArray(data.leaves)) set(KEYS.LEAVES, data.leaves);
-      if (Array.isArray(data.announcements)) set(KEYS.ANNOUNCEMENTS, data.announcements);
-      if (Array.isArray(data.holidays)) set(KEYS.HOLIDAYS, data.holidays);
-      if (data.preferences) set(KEYS.PREFERENCES, data.preferences);
-      if (Array.isArray(data.activityLog)) set(KEYS.ACTIVITY_LOG, data.activityLog);
+      const cid = targetCompanyId || data.companyId || getActiveCompanyId();
+      if (data.company) set(getScopedKey('company', cid), data.company);
+      if (Array.isArray(data.users)) set(getScopedKey('users', cid), data.users);
+      if (Array.isArray(data.attendance)) set(getScopedKey('attendance', cid), data.attendance);
+      if (Array.isArray(data.leaves)) set(getScopedKey('leaves', cid), data.leaves);
+      if (Array.isArray(data.announcements)) set(getScopedKey('announcements', cid), data.announcements);
+      if (Array.isArray(data.holidays)) set(getScopedKey('holidays', cid), data.holidays);
+      if (data.preferences) set(GLOBAL_KEYS.PREFERENCES, data.preferences);
+      if (Array.isArray(data.activityLog)) set(getScopedKey('activity_log', cid), data.activityLog);
       return { success: true };
     } catch (e) {
       return { success: false, error: e.message };
     }
   }
 
+  // Wipe all HCM data (multi-company registry, scoped data, session)
   function clearAllData() {
-    Object.values(KEYS).forEach(k => localStorage.removeItem(k));
+    const keysToRemove = new Set();
+    try {
+      if (typeof Object.keys === 'function') {
+        Object.keys(localStorage).forEach(k => {
+          if (k && k.startsWith('hcm_')) keysToRemove.add(k);
+        });
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof localStorage.length === 'number') {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('hcm_')) keysToRemove.add(k);
+        }
+      }
+    } catch (e) {}
+
+    keysToRemove.forEach(k => localStorage.removeItem(k));
     return true;
   }
 
   return {
-    KEYS,
+    GLOBAL_KEYS,
     get,
     set,
     remove,
+    getCompanies,
+    getCompanySummary,
+    getCompanyByCode,
+    getCompanyByName,
+    getActiveCompanyId,
+    setActiveCompanyId,
+    createCompanyWorkspace,
     getCompany,
     saveCompany,
     isSetupCompleted,
