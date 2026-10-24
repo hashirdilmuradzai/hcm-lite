@@ -162,13 +162,21 @@
 
       <!-- STANDARD LOGIN CARD -->
       <div class="card" id="login-card" style="display: none;">
-        <div class="card-header">
-          <div class="card-title-group">
-            <h2 class="card-title" id="login-company-title">Sign In</h2>
-            <span class="card-subtitle">Enter your credentials to access your portal</span>
+        <div class="card-header" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--space-6) var(--space-6) var(--space-4);">
+          <div id="login-company-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; background-color: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); margin-bottom: 2px;">
+            <span class="company-pulse-dot" style="width: 7px; height: 7px;"></span>
+            <span id="login-company-title">Company Workspace</span>
           </div>
+          <h2 class="card-title" style="font-size: 1.4rem; margin: 0;">Welcome Back</h2>
+          <span class="card-subtitle" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">Sign in to your account to continue</span>
         </div>
-        <div class="card-body">
+        <div class="card-body" style="padding-top: var(--space-4);">
+          <!-- In-form error alert banner -->
+          <div id="login-error-alert" class="alert alert-error" style="display: none; margin-bottom: var(--space-4);" role="alert">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span id="login-error-text">Invalid email or password.</span>
+          </div>
+
           <form id="login-form">
             <div class="form-group">
               <label class="form-label" for="login-email">Email Address <span class="required">*</span></label>
@@ -178,12 +186,19 @@
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <label class="form-label" for="login-password" style="margin-bottom: 0;">Password <span class="required">*</span></label>
-                <button type="button" id="toggle-login-pwd" class="btn btn-outline btn-sm" style="padding: 1px 6px; font-size: 0.75rem;">Show</button>
+                <button type="button" id="toggle-login-pwd" class="btn btn-outline btn-sm" style="padding: 1px 8px; font-size: 0.75rem;" aria-label="Toggle password visibility">Show</button>
               </div>
               <input type="password" id="login-password" class="form-input" required placeholder="••••••••" autocomplete="current-password">
             </div>
 
-            <div style="margin-top: var(--space-6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); margin-bottom: var(--space-5);">
+              <label style="display: inline-flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); color: var(--color-text-secondary); cursor: pointer; user-select: none;">
+                <input type="checkbox" id="login-remember-me" style="cursor: pointer;">
+                <span>Remember my email</span>
+              </label>
+            </div>
+
+            <div>
               <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-login-submit">
                 Sign In
               </button>
@@ -191,7 +206,7 @@
 
             <div style="margin-top: var(--space-4); text-align: center;">
               <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-                Role redirection: Admin accounts access the Admin Console, while employee accounts open the Self-Service Portal.
+                Shared portal for Administrators and Employees. Role redirection is applied automatically upon sign in.
               </span>
             </div>
           </form>

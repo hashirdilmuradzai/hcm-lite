@@ -32,17 +32,24 @@ const App = (() => {
     } else {
       if (setupCard) setupCard.style.display = 'none';
       if (loginCard) loginCard.style.display = 'block';
-      setupLoginForm();
-
       // Check if session already active
       const session = Storage.getSession();
       if (session && session.userId) {
         const user = Storage.getUserById(session.userId);
-        if (user) {
-          if (user.role === 'admin') window.location.href = 'pages/admin.html';
-          else window.location.href = 'pages/employee.html';
+        if (user && user.status !== 'inactive') {
+          if (user.role === 'admin') {
+            window.location.replace('pages/admin.html');
+            return;
+          } else {
+            window.location.replace('pages/employee.html');
+            return;
+          }
+        } else {
+          Storage.clearSession();
         }
       }
+
+      setupLoginForm();
     }
   }
 
@@ -97,10 +104,19 @@ const App = (() => {
           workingDays
         });
 
-        UI.showToast('Workspace created successfully! Entering dashboard...', 'success');
+        UI.showToast('Company created successfully. Please sign in to continue.', 'success', 4000);
         setTimeout(() => {
-          window.location.href = 'pages/admin.html';
-        }, 800);
+          initIndexPage();
+          const emailInput = document.getElementById('login-email');
+          if (emailInput) {
+            emailInput.value = adminEmail.trim().toLowerCase();
+            const pwdInput = document.getElementById('login-password');
+            if (pwdInput) {
+              pwdInput.value = '';
+              pwdInput.focus();
+            }
+          }
+        }, 500);
       } catch (err) {
         UI.showToast(err.message, 'error');
         submitBtn.disabled = false;
@@ -119,8 +135,22 @@ const App = (() => {
       titleEl.textContent = company.name;
     }
 
-    const togglePwdBtn = document.getElementById('toggle-login-pwd');
+    const emailInput = document.getElementById('login-email');
     const pwdInput = document.getElementById('login-password');
+    const togglePwdBtn = document.getElementById('toggle-login-pwd');
+    const rememberMeCb = document.getElementById('login-remember-me');
+    const errorAlert = document.getElementById('login-error-alert');
+    const errorText = document.getElementById('login-error-text');
+
+    // Restore remembered email if available
+    try {
+      const savedEmail = localStorage.getItem('hcm_remembered_email');
+      if (savedEmail && emailInput) {
+        emailInput.value = savedEmail;
+        if (rememberMeCb) rememberMeCb.checked = true;
+      }
+    } catch (e) {}
+
     if (togglePwdBtn && pwdInput) {
       togglePwdBtn.onclick = () => {
         const isPwd = pwdInput.type === 'password';
@@ -129,17 +159,42 @@ const App = (() => {
       };
     }
 
+    // Dismiss error alert on typing
+    const clearError = () => {
+      if (errorAlert) errorAlert.style.display = 'none';
+    };
+    if (emailInput) emailInput.oninput = clearError;
+    if (pwdInput) pwdInput.oninput = clearError;
+
     form.onsubmit = async (e) => {
       e.preventDefault();
+      clearError();
+
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Signing in...';
+      const originalText = submitBtn.textContent;
+      submitBtn.innerHTML = `
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; animation: spin 1s linear infinite;" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg>
+          Signing In...
+        </span>
+      `;
 
-      const email = document.getElementById('login-email').value;
-      const password = pwdInput.value;
+      const email = emailInput ? emailInput.value : '';
+      const password = pwdInput ? pwdInput.value : '';
 
       try {
         const user = await Auth.login(email, password);
+
+        // Handle Remember Me
+        try {
+          if (rememberMeCb && rememberMeCb.checked) {
+            localStorage.setItem('hcm_remembered_email', email.trim().toLowerCase());
+          } else {
+            localStorage.removeItem('hcm_remembered_email');
+          }
+        } catch (e) {}
+
         UI.showToast(`Welcome back, ${user.name}!`, 'success');
         setTimeout(() => {
           if (user.role === 'admin') {
@@ -147,11 +202,20 @@ const App = (() => {
           } else {
             window.location.href = 'pages/employee.html';
           }
-        }, 500);
+        }, 400);
       } catch (err) {
-        UI.showToast(err.message, 'error');
+        const message = err.message || 'Invalid email or password.';
+        if (errorAlert && errorText) {
+          errorText.textContent = message;
+          errorAlert.style.display = 'flex';
+        }
+        UI.showToast(message, 'error');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In';
+        submitBtn.textContent = originalText;
+        if (pwdInput) {
+          pwdInput.value = '';
+          pwdInput.focus();
+        }
       }
     };
   }

@@ -12,8 +12,12 @@ const localStorageMock = {
 };
 
 const windowMock = {
-  localStorage: localStorageMock,
-  location: { pathname: '/pages/admin.html', href: '' },
+  location: {
+    pathname: '/pages/admin.html',
+    href: '',
+    replaceTarget: '',
+    replace: function(url) { this.replaceTarget = url; this.href = url; }
+  },
   crypto: {
     subtle: {
       digest: async (algo, data) => {
@@ -92,6 +96,54 @@ async function runTests() {
   assert(company.graceMinutes === 0, 'Grace minutes 0 preserved exactly without fallback to 15');
   assert(company.leaveQuota === 15, 'Leave quota 15 saved correctly');
 
+  // 2a. Verify NO auto-login after company creation
+  assert(sandbox.Storage.getSession() === null, 'Admin is NOT automatically logged in after company registration');
+
+  // 2b. Verify prevent company setup from running again
+  let duplicateCompanyBlocked = false;
+  try {
+    await sandbox.Auth.setupCompanyAndAdmin({
+      companyName: 'Second Company',
+      adminName: 'Another Admin',
+      adminEmail: 'admin2@techvision.com',
+      adminPassword: 'Password123!'
+    });
+  } catch (err) {
+    if (err.message.includes('already configured')) duplicateCompanyBlocked = true;
+  }
+  assert(duplicateCompanyBlocked === true, 'Duplicate company creation is strictly blocked when company exists');
+
+  // 2c. Invalid Admin Login Test
+  let badLoginFailed = false;
+  try {
+    await sandbox.Auth.login('admin@techvision.com', 'WrongPassword!');
+  } catch (err) {
+    if (err.message === 'Invalid email or password.') badLoginFailed = true;
+  }
+  assert(badLoginFailed === true, 'Login with incorrect password fails with exact message "Invalid email or password."');
+
+  let badEmailFailed = false;
+  try {
+    await sandbox.Auth.login('unknown@techvision.com', 'Password123!');
+  } catch (err) {
+    if (err.message === 'Invalid email or password.') badEmailFailed = true;
+  }
+  assert(badEmailFailed === true, 'Login with nonexistent email fails with exact message "Invalid email or password."');
+
+  // 2d. Successful Admin Login
+  const adminUser = await sandbox.Auth.login('admin@techvision.com', 'Password123!');
+  assert(adminUser.role === 'admin', 'Admin successfully logged in with role: "admin"');
+  assert(sandbox.Storage.getSession() !== null && sandbox.Storage.getSession().role === 'admin', 'Active session saved in hcm_session');
+
+  // 2e. Admin Logout Test
+  sandbox.Auth.logout();
+  assert(sandbox.Storage.getSession() === null, 'Session removed from hcm_session upon logout');
+  assert(sandbox.Storage.getCompany().name === 'TechVision Solutions', 'Company information preserved after logout');
+  assert(sandbox.Storage.getUsers().length === 1, 'Admin user account preserved after logout');
+
+  // Log back in as admin to manage employees
+  await sandbox.Auth.login('admin@techvision.com', 'Password123!');
+
   // 3. Employee Creation & ID Sequence
   const emp1 = await sandbox.EmployeeManager.createEmployee({
     name: 'John Doe',
@@ -116,6 +168,37 @@ async function runTests() {
     joiningDate: '2026-01-01'
   });
   assert(emp2.id === 'EMP-1002', 'Sequential ID never reuses deleted EMP-1001 (generated EMP-1002)');
+
+  // 3a. Admin Logout and Employee Login Flow
+  sandbox.Auth.logout();
+  assert(sandbox.Storage.getSession() === null, 'Admin session cleared on logout before employee login');
+
+  const empUser = await sandbox.Auth.login('jane@techvision.com', 'password123');
+  assert(empUser.role === 'employee', 'Employee successfully logged in with role: "employee"');
+  assert(sandbox.Storage.getSession().userId === emp2.id, 'Employee session active in hcm_session');
+
+  // 3b. Role-Based Navigation Guard Test (Employee cannot access Admin pages)
+  sandbox.window.location.href = '';
+  const adminPageAccess = sandbox.Auth.requireAuth('admin');
+  assert(adminPageAccess === null, 'Employee denied access to admin page by requireAuth("admin")');
+  assert(sandbox.window.location.replaceTarget.includes('employee.html'), 'Employee redirected to employee dashboard when attempting admin page');
+
+  // 3c. Employee accesses employee page
+  const employeePageAccess = sandbox.Auth.requireAuth();
+  assert(employeePageAccess !== null && employeePageAccess.id === emp2.id, 'Employee granted access to employee page');
+
+  // 3d. Employee Logout
+  sandbox.Auth.logout();
+  assert(sandbox.Storage.getSession() === null, 'Employee session cleared on logout');
+
+  // 3e. Unauthenticated Access Blocked
+  sandbox.window.location.href = '';
+  const unauthAccess = sandbox.Auth.requireAuth();
+  assert(unauthAccess === null, 'Unauthenticated access blocked by requireAuth()');
+  assert(sandbox.window.location.replaceTarget.includes('index.html'), 'Unauthenticated user redirected to index.html');
+
+  // Log back in as admin for subsequent attendance and leave tests
+  await sandbox.Auth.login('admin@techvision.com', 'Password123!');
 
   // 4. Grace Period 0 Evaluation
   // Office starts 09:00, grace 0. 09:00:00 -> on time. 09:00:01 -> late.

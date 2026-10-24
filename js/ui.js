@@ -321,6 +321,10 @@ const UI = (() => {
 
   function renderTopbarContent(topbarEl, user) {
     const company = Storage.getCompany() || { name: 'HCM Lite' };
+    const isAdmin = user.role === 'admin';
+    const roleLabel = isAdmin ? 'Admin' : (user.designation || 'Employee');
+    const roleClass = isAdmin ? 'role-admin' : 'role-employee';
+
     topbarEl.innerHTML = `
       <div class="topbar-left">
         <button class="mobile-menu-toggle" aria-label="Toggle Navigation">${ICONS.menu}</button>
@@ -334,21 +338,83 @@ const UI = (() => {
           ${ICONS.calendar}
           <span class="current-local-date date-text"></span>
         </div>
-        <button class="btn btn-outline btn-icon-only theme-toggle-btn" title="Toggle Theme">
+        <button class="btn btn-outline btn-icon-only theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">
           ${ICONS.moon}
         </button>
-        <button class="btn btn-outline btn-sm" id="topbar-change-pwd-btn">
-          Change Password
-        </button>
+
+        <!-- User Profile Dropdown with Prominent Logout -->
+        <div class="profile-dropdown-container" id="topbar-profile-container">
+          <button class="profile-trigger-btn" id="topbar-profile-trigger" aria-haspopup="true" aria-expanded="false" title="${escapeHTML(user.name)} (${roleLabel})">
+            <div class="profile-trigger-avatar">${getInitials(user.name)}</div>
+            <span class="profile-trigger-name">${escapeHTML(user.name)}</span>
+            <span class="profile-trigger-chevron">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </span>
+          </button>
+          <div class="profile-dropdown-menu" id="topbar-profile-menu">
+            <div class="profile-dropdown-header">
+              <div class="profile-dropdown-avatar">${getInitials(user.name)}</div>
+              <div class="profile-dropdown-info">
+                <div class="profile-dropdown-fullname" title="${escapeHTML(user.name)}">${escapeHTML(user.name)}</div>
+                <div class="profile-dropdown-role ${roleClass}">${escapeHTML(roleLabel)}</div>
+              </div>
+            </div>
+            <div class="profile-dropdown-list">
+              <button type="button" class="profile-dropdown-item" id="topbar-change-pwd-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-1.5 1.5L16 7l-2-2m-2 2l-2-2m-2 2l-2-2m-2 2L2 14v8h8l8.5-8.5"></path></svg>
+                <span>Change Password</span>
+              </button>
+              <button type="button" class="profile-dropdown-item item-logout" id="topbar-logout-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
     const themeBtn = topbarEl.querySelector('.theme-toggle-btn');
     if (themeBtn) themeBtn.onclick = toggleTheme;
 
+    const container = topbarEl.querySelector('#topbar-profile-container');
+    const trigger = topbarEl.querySelector('#topbar-profile-trigger');
     const pwdBtn = topbarEl.querySelector('#topbar-change-pwd-btn');
+    const logoutBtn = topbarEl.querySelector('#topbar-logout-btn');
+
+    if (trigger && container) {
+      trigger.onclick = (e) => {
+        e.stopPropagation();
+        const isOpen = container.classList.toggle('open');
+        trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
+      document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+          container.classList.remove('open');
+          trigger.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
     if (pwdBtn) {
-      pwdBtn.onclick = showChangePasswordModal;
+      pwdBtn.onclick = () => {
+        if (container) container.classList.remove('open');
+        showChangePasswordModal();
+      };
+    }
+
+    if (logoutBtn) {
+      logoutBtn.onclick = () => {
+        if (container) container.classList.remove('open');
+        showConfirmModal({
+          title: 'Sign Out',
+          message: 'Are you sure you want to sign out of your account?',
+          confirmText: 'Sign Out',
+          isDestructive: true,
+          onConfirm: () => Auth.logout()
+        });
+      };
     }
   }
 

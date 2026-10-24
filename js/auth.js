@@ -50,6 +50,10 @@ const Auth = (() => {
 
   // Setup Company and first Admin
   async function setupCompanyAndAdmin(formData) {
+    if (Storage.isSetupCompleted()) {
+      throw new Error('A company workspace is already configured on this system.');
+    }
+
     const {
       companyName,
       adminName,
@@ -101,28 +105,24 @@ const Auth = (() => {
     };
     Storage.saveUser(adminUser);
 
-    // Set Active Session
-    Storage.setSession({
-      userId: adminUser.id,
-      role: adminUser.role,
-      name: adminUser.name,
-      email: adminUser.email
-    });
+    // Explicit requirement: Do not log the Admin in automatically after company creation
+    Storage.clearSession();
 
     Storage.logActivity('Company Setup', `Setup completed for ${company.name} by ${adminUser.name}`, 'admin', adminUser.name);
 
     return adminUser;
   }
 
-  // Login with email and password
+  // Login with email and password (shared for Admin and Employees)
   async function login(email, password) {
-    if (!email || !password) {
+    if (!email || !email.trim() || !password) {
       throw new Error('Please enter both email and password.');
     }
 
-    const user = Storage.getUserByEmail(email);
+    const cleanEmail = email.trim().toLowerCase();
+    const user = Storage.getUserByEmail(cleanEmail);
     if (!user) {
-      throw new Error('No user found with this email address.');
+      throw new Error('Invalid email or password.');
     }
 
     if (user.status && user.status === 'inactive') {
@@ -131,30 +131,32 @@ const Auth = (() => {
 
     const inputHash = await hashPassword(password);
     if (user.passwordHash !== inputHash) {
-      throw new Error('Incorrect password. Please try again.');
+      throw new Error('Invalid email or password.');
     }
 
-    // Set Session
-    Storage.setSession({
+    // Set Active Session in hcm_session
+    const sessionData = {
       userId: user.id,
       role: user.role,
       name: user.name,
-      email: user.email
-    });
+      email: user.email,
+      loginTime: new Date().toISOString()
+    };
+    Storage.setSession(sessionData);
 
     Storage.logActivity('Login', `User ${user.name} logged in`, user.role, user.name);
 
     return user;
   }
 
-  // Logout
+  // Logout: clears session and redirects immediately to login
   function logout() {
     const session = Storage.getSession();
     if (session) {
       Storage.logActivity('Logout', `User ${session.name} logged out`, session.role, session.name);
     }
     Storage.clearSession();
-    window.location.href = isPagesDir() ? '../index.html' : 'index.html';
+    window.location.replace(isPagesDir() ? '../index.html' : 'index.html');
   }
 
   // Page Navigation Guard
@@ -163,27 +165,37 @@ const Auth = (() => {
 
     if (!session || !session.userId) {
       // Not logged in -> redirect to login
-      window.location.href = isPagesDir() ? '../index.html' : 'index.html';
+      window.location.replace(isPagesDir() ? '../index.html' : 'index.html');
       return null;
     }
 
     const user = Storage.getUserById(session.userId);
-    if (!user) {
+    if (!user || user.status === 'inactive') {
       Storage.clearSession();
-      window.location.href = isPagesDir() ? '../index.html' : 'index.html';
+      window.location.replace(isPagesDir() ? '../index.html' : 'index.html');
       return null;
     }
 
     // If page requires Admin, but logged-in user is Employee
     if (allowedRole === 'admin' && user.role !== 'admin') {
       console.warn('[Auth] Access restricted: Employees cannot access Admin pages.');
-      window.location.href = isPagesDir() ? 'employee.html' : 'pages/employee.html';
+      window.location.replace(isPagesDir() ? 'employee.html' : 'pages/employee.html');
       return null;
     }
 
-    // If page is for Employee, but user is Admin
-    // (Admin can optionally view employee page, but let's allow Admin or return user)
     return user;
+  }
+
+  // Attach bfcache page restore guard so back button never exposes protected pages
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('pageshow', (event) => {
+      if (isPagesDir()) {
+        const session = Storage.getSession();
+        if (!session || !session.userId) {
+          window.location.replace('../index.html');
+        }
+      }
+    });
   }
 
   // Change Password for current user

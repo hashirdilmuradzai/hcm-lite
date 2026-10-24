@@ -755,3 +755,8 @@ button, input, select, textarea {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

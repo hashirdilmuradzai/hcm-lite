@@ -179,6 +179,24 @@ html, body {
     text-overflow: ellipsis;
   }
 
+  .profile-trigger-name {
+    display: none;
+  }
+
+  .profile-trigger-chevron {
+    display: none;
+  }
+
+  .profile-trigger-btn {
+    padding: 2px;
+  }
+
+  .profile-dropdown-menu {
+    right: 0;
+    width: 220px;
+    max-width: calc(100vw - 20px);
+  }
+
   .modal-dialog {
     width: calc(100vw - 24px) !important;
     max-width: calc(100vw - 24px) !important;
