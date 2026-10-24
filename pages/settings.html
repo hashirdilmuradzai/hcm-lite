@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Configure company rules, attendance verification, holidays, and data backups in HCM Lite.">
+  <title>Company Settings — HCM Lite</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar-backdrop"></div>
+    <aside class="sidebar"></aside>
+
+    <div class="main-wrapper">
+      <header class="topbar"></header>
+
+      <main class="content-body">
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Company Settings</h1>
+            <p class="page-description">Configure working calendars, office attendance rules, bonus verification policies, and data management.</p>
+          </div>
+        </div>
+
+        <form id="company-settings-form">
+          <!-- Card: Core Business Rules -->
+          <div class="card" style="margin-bottom: var(--space-6);">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">Core Operating Rules</h2>
+                <span class="card-subtitle">General workspace metadata, shift timings, and annual leave allowances</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="company-name-input">Company Name <span class="required">*</span></label>
+                  <input type="text" id="company-name-input" class="form-input" required placeholder="Acme Technologies">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="leave-quota-input">Annual Leave Quota (Days) <span class="required">*</span></label>
+                  <input type="number" id="leave-quota-input" class="form-input" required min="1" max="60" value="18">
+                  <span class="form-hint">Standard authorized paid leave days granted per employee per calendar year</span>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="office-start-input">Office Start Time <span class="required">*</span></label>
+                  <input type="time" id="office-start-input" class="form-input" required value="09:00">
+                  <span class="form-hint">Scheduled shift arrival time</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="grace-minutes-input">Grace Period (Minutes) <span class="required">*</span></label>
+                  <input type="number" id="grace-minutes-input" class="form-input" required min="0" max="120" value="15">
+                  <span class="form-hint">Arriving strictly after Start Time + Grace Period marks attendance as Late</span>
+                </div>
+              </div>
+
+              <!-- Working Days Checkboxes -->
+              <div class="form-group">
+                <label class="form-label">Weekly Working Days <span class="required">*</span></label>
+                <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; margin-top: 6px;">
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-1" value="1"> Monday
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-2" value="2"> Tuesday
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-3" value="3"> Wednesday
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-4" value="4"> Thursday
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-5" value="5"> Friday
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-6" value="6"> Saturday
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); cursor: pointer;">
+                    <input type="checkbox" id="workday-0" value="0"> Sunday
+                  </label>
+                </div>
+                <span class="form-hint">Unchecked days are treated as non-working days for absence and leave calculations</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Attendance Verification Policies (Bonus Features A & B) -->
+          <div class="card" style="margin-bottom: var(--space-6);">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">Attendance Verification Policies (Bonus Features)</h2>
+                <span class="card-subtitle">Enable AI Face Detection camera checkpoints and GPS Geofencing boundaries</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="switch-label" style="border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-4);">
+                <div class="switch-text">
+                  <span class="switch-title">Camera Check-in &amp; Face Detection</span>
+                  <span class="switch-description">Require employees to verify their physical presence via webcam face positioning before clocking in</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="camera-verify-toggle">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="switch-label" style="padding-top: var(--space-4);">
+                <div class="switch-text">
+                  <span class="switch-title">Office GPS Geofence Verification</span>
+                  <span class="switch-description">Enforce proximity check verifying employee's device GPS coordinates are within the configured office radius</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="gps-verify-toggle">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div style="background-color: var(--color-surface-subtle); border-radius: var(--radius-md); padding: var(--space-4); margin-top: var(--space-4); border: 1px solid var(--color-border);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap; gap: var(--space-2);">
+                  <strong style="font-size: var(--font-size-sm);">Office Geofence Coordinates</strong>
+                  <button type="button" class="btn btn-outline btn-sm" id="btn-capture-location">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span>Use Current Location</span>
+                  </button>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label" for="office-lat-input">Office Latitude</label>
+                    <input type="number" step="any" id="office-lat-input" class="form-input" placeholder="e.g. 24.8607">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="office-lng-input">Office Longitude</label>
+                    <input type="number" step="any" id="office-lng-input" class="form-input" placeholder="e.g. 67.0011">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="office-radius-input">Allowed Radius (Meters)</label>
+                    <input type="number" id="office-radius-input" class="form-input" min="20" max="5000" value="150">
+                  </div>
+                </div>
+
+                <div id="location-status-text" style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+                  Click "Use Current Location" to fetch your browser's exact coordinates, or input them manually.
+                </div>
+              </div>
+
+              <div style="margin-top: var(--space-6); display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary btn-lg" id="btn-save-settings">
+                  Save All Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Card: Company Holidays Management -->
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Company Holidays</h2>
+              <span class="card-subtitle">Official holidays are excluded from employee absence calculations and leave deductions</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <form id="add-holiday-form" style="display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap;">
+              <input type="text" id="holiday-name-input" class="form-input" required placeholder="Holiday Name (e.g. Independence Day)" style="flex: 2; min-width: 200px;">
+              <input type="date" id="holiday-date-input" class="form-input" required style="flex: 1; min-width: 160px;">
+              <button type="submit" class="btn btn-primary btn-sm">Add Holiday</button>
+            </form>
+
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Holiday Name</th>
+                    <th>Date</th>
+                    <th style="text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="holidays-list-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card: Data Management (Export / Import / Clear) -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Data Management &amp; System Backup</h2>
+              <span class="card-subtitle">Export local application state, restore previous backups, or reset workspace</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4);">
+              <!-- Export -->
+              <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <h3 style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-bottom: 4px;">Export JSON Backup</h3>
+                  <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); line-height: 1.4; margin-bottom: var(--space-3);">
+                    Download a full snapshot of all company settings, employees, attendance logs, and leave records.
+                  </p>
+                </div>
+                <button type="button" class="btn btn-outline btn-full" id="btn-export-backup">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span>Download Backup JSON</span>
+                </button>
+              </div>
+
+              <!-- Import -->
+              <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <h3 style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-bottom: 4px;">Restore From Backup</h3>
+                  <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); line-height: 1.4; margin-bottom: var(--space-3);">
+                    Import a previously exported JSON backup file to restore application records into this browser.
+                  </p>
+                </div>
+                <label class="btn btn-outline btn-full" style="cursor: pointer;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <span>Select Backup File</span>
+                  <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                </label>
+              </div>
+
+              <!-- Clear Data -->
+              <div style="border: 1px solid var(--color-error-bg); background: var(--color-error-bg); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <h3 style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-error); margin-bottom: 4px;">Wipe Local Storage</h3>
+                  <p style="font-size: var(--font-size-xs); color: var(--color-error-text); line-height: 1.4; margin-bottom: var(--space-3);">
+                    Permanently delete all browser records. This resets HCM Lite back to its first-run onboarding screen.
+                  </p>
+                </div>
+                <button type="button" class="btn btn-danger btn-full" id="btn-clear-all-data">
+                  <span>Wipe All Application Data</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="../js/storage.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script src="../js/geolocation.js"></script>
+  <script src="../js/settings.js"></script>
+  <script src="../js/app.js"></script>
+</body>
+</html>

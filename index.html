@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="HCM Lite — A modern, professional HR Management platform for modern teams.">
+  <title>HCM Lite — Sign In & Setup</title>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <style>
+    .auth-page-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-6);
+      background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.05), transparent 70%), var(--color-bg);
+    }
+    .auth-container {
+      width: 100%;
+      max-width: 480px;
+    }
+    .auth-brand-header {
+      text-align: center;
+      margin-bottom: var(--space-8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .auth-brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, #17233B 0%, #2563EB 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      margin-bottom: var(--space-2);
+    }
+    .auth-brand-logo svg {
+      width: 24px;
+      height: 24px;
+    }
+    .auth-tagline {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-page-wrapper">
+    <div class="auth-container">
+      <div class="auth-brand-header">
+        <div class="auth-brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+        </div>
+        <h1 class="brand-title" style="font-size: 1.75rem;">HCM Lite</h1>
+        <p class="auth-tagline">Human Capital Management for High-Performing Teams</p>
+      </div>
+
+      <!-- FIRST RUN SETUP CARD -->
+      <div class="card" id="first-run-setup-card" style="display: none;">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Initial Workspace Setup</h2>
+            <span class="card-subtitle">Set up your company profile and create the first administrator account</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <form id="first-run-form">
+            <div class="form-group">
+              <label class="form-label" for="setup-company-name">Company Name <span class="required">*</span></label>
+              <input type="text" id="setup-company-name" class="form-input" required placeholder="e.g. Acme Technologies" autocomplete="organization">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="setup-admin-name">Admin Full Name <span class="required">*</span></label>
+                <input type="text" id="setup-admin-name" class="form-input" required placeholder="e.g. Sarah Jenkins" autocomplete="name">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setup-admin-email">Admin Email <span class="required">*</span></label>
+                <input type="email" id="setup-admin-email" class="form-input" required placeholder="admin@acme.com" autocomplete="email">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="setup-admin-pwd">Admin Password <span class="required">*</span></label>
+                <input type="password" id="setup-admin-pwd" class="form-input" required minlength="6" placeholder="Min. 6 characters" autocomplete="new-password">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setup-confirm-pwd">Confirm Password <span class="required">*</span></label>
+                <input type="password" id="setup-confirm-pwd" class="form-input" required minlength="6" placeholder="Re-enter password" autocomplete="new-password">
+              </div>
+            </div>
+
+            <div style="margin: var(--space-4) 0 var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-3);">
+              <span style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Initial Company Rules</span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="setup-start-time">Office Start Time</label>
+                <input type="time" id="setup-start-time" class="form-input" value="09:00">
+                <span class="form-hint">Standard daily check-in start</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setup-grace-mins">Grace Period (Minutes)</label>
+                <input type="number" id="setup-grace-mins" class="form-input" value="15" min="0" max="60">
+                <span class="form-hint">Late threshold after start time</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="setup-leave-quota">Annual Leave Quota (Days)</label>
+              <input type="number" id="setup-leave-quota" class="form-input" value="18" min="1" max="60">
+              <span class="form-hint">Standard annual leave days per employee</span>
+            </div>
+
+            <div style="margin-top: var(--space-5);">
+              <button type="submit" class="btn btn-primary btn-full btn-lg">
+                Create Company &amp; Admin Account
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- STANDARD LOGIN CARD -->
+      <div class="card" id="login-card" style="display: none;">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title" id="login-company-title">Sign In</h2>
+            <span class="card-subtitle">Enter your credentials to access your portal</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <form id="login-form">
+            <div class="form-group">
+              <label class="form-label" for="login-email">Email Address <span class="required">*</span></label>
+              <input type="email" id="login-email" class="form-input" required placeholder="name@company.com" autocomplete="email">
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="login-password" style="margin-bottom: 0;">Password <span class="required">*</span></label>
+                <button type="button" id="toggle-login-pwd" class="btn btn-outline btn-sm" style="padding: 1px 6px; font-size: 0.75rem;">Show</button>
+              </div>
+              <input type="password" id="login-password" class="form-input" required placeholder="••••••••" autocomplete="current-password">
+            </div>
+
+            <div style="margin-top: var(--space-6);">
+              <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-login-submit">
+                Sign In
+              </button>
+            </div>
+
+            <div style="margin-top: var(--space-4); text-align: center;">
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+                Role redirection: Admin accounts access the Admin Console, while employee accounts open the Self-Service Portal.
+              </span>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div style="margin-top: var(--space-6); text-align: center; font-size: var(--font-size-xs); color: var(--color-text-muted);">
+        Saylani Hackathon Beginner Track • Client-Side LocalStorage Edition
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/attendance.js"></script>
+  <script src="js/leave.js"></script>
+  <script src="js/payroll.js"></script>
+  <script src="js/helper.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

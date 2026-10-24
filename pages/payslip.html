@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Generate, view, and print official monthly salary slips and deductions in HCM Lite.">
+  <title>Payslip & Payroll — HCM Lite</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link rel="stylesheet" href="../css/print.css">
+  <style>
+    .payslip-sheet {
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-8);
+      max-width: 860px;
+      margin: 0 auto var(--space-8);
+      box-shadow: var(--shadow-card);
+    }
+    .payslip-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-4);
+      margin: var(--space-6) 0;
+      padding: var(--space-4);
+      background-color: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+    }
+    .payslip-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .payslip-meta-item label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .payslip-meta-item span {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-main);
+    }
+    .payslip-table-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+      margin-bottom: var(--space-6);
+    }
+    @media (max-width: 768px) {
+      .payslip-table-grid {
+        grid-template-columns: 1fr;
+      }
+      .payslip-sheet {
+        padding: var(--space-4);
+      }
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-2) 0;
+      font-size: var(--font-size-sm);
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+    .summary-row.total-row {
+      border-top: 2px solid var(--color-border);
+      border-bottom: 2px solid var(--color-border);
+      padding: var(--space-3) 0;
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-bold);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar-backdrop"></div>
+    <aside class="sidebar"></aside>
+
+    <div class="main-wrapper">
+      <header class="topbar"></header>
+
+      <main class="content-body">
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Monthly Salary Slip</h1>
+            <p class="page-description">Formula-based payroll computation factoring actual attendance, approved leaves, and deductions.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" id="btn-print-payslip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+              <span>Print / Save as PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Controls (Employee selector for Admin, Month & Year) -->
+        <div class="card no-print" style="margin-bottom: var(--space-6);">
+          <div class="card-body" style="padding: var(--space-4);">
+            <div class="filter-toolbar" style="margin-bottom: 0;">
+              <div class="filter-group">
+                <!-- Employee selector (Admin only) -->
+                <div id="admin-employee-select-wrap" style="display: none;">
+                  <select id="select-payslip-employee" class="form-select" style="min-width: 220px;"></select>
+                </div>
+
+                <!-- Month Selector -->
+                <select id="select-payslip-month" class="form-select" style="min-width: 150px;"></select>
+
+                <!-- Year Selector -->
+                <select id="select-payslip-year" class="form-select" style="min-width: 110px;">
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+                  Official Formula: Net = Base − PerDay × (Absences + 0.5 × HalfDays)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payslip Empty State -->
+        <div class="empty-state" id="payslip-empty-state" style="display: none;">
+          <div class="empty-state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          </div>
+          <h3 class="empty-state-title">No employees available for payslip</h3>
+          <p class="empty-state-description">Add employee records to generate their salary calculations.</p>
+        </div>
+
+        <!-- PRINTABLE PAYSLIP SHEET -->
+        <div class="payslip-sheet" id="payslip-sheet-container">
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--color-primary-dark); padding-bottom: var(--space-4);">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <div style="width: 28px; height: 28px; border-radius: 6px; background: #17233B; display: flex; align-items: center; justify-content: center; color: white;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h2 style="font-size: 1.4rem; font-weight: bold; color: var(--color-primary-dark); margin: 0;" id="slip-company-name">HCM Lite</h2>
+              </div>
+              <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin: 0;">Official Employee Salary Statement</p>
+            </div>
+            <div style="text-align: right;">
+              <span class="badge badge-info" style="font-size: 0.85rem; padding: 4px 12px;" id="slip-period-badge">October 2026</span>
+              <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 4px;">Statement Ref: <span id="slip-ref-code" style="font-family: var(--font-mono);">PS-202610</span></div>
+            </div>
+          </div>
+
+          <!-- Employee Meta Grid -->
+          <div class="payslip-meta-grid">
+            <div class="payslip-meta-item">
+              <label>Employee Name</label>
+              <span id="slip-emp-name">—</span>
+            </div>
+            <div class="payslip-meta-item">
+              <label>Employee ID</label>
+              <span id="slip-emp-id" style="font-family: var(--font-mono);">—</span>
+            </div>
+            <div class="payslip-meta-item">
+              <label>Department</label>
+              <span id="slip-emp-dept">—</span>
+            </div>
+            <div class="payslip-meta-item">
+              <label>Designation</label>
+              <span id="slip-emp-designation">—</span>
+            </div>
+          </div>
+
+          <!-- Attendance & Shift Summary in Month -->
+          <div style="margin-bottom: var(--space-6);">
+            <h4 style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-3);">
+              Monthly Attendance Breakdown
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; text-align: center;">
+              <div style="padding: 10px; background: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.7rem; color: var(--color-text-muted);">Work Days</div>
+                <div style="font-size: 1.15rem; font-weight: bold;" id="slip-working-days">0</div>
+              </div>
+              <div style="padding: 10px; background: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.7rem; color: var(--color-text-muted);">Present</div>
+                <div style="font-size: 1.15rem; font-weight: bold; color: var(--color-success);" id="slip-present-days">0</div>
+              </div>
+              <div style="padding: 10px; background: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.7rem; color: var(--color-text-muted);">Late Arrivals</div>
+                <div style="font-size: 1.15rem; font-weight: bold; color: var(--color-warning);" id="slip-late-days">0</div>
+              </div>
+              <div style="padding: 10px; background: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.7rem; color: var(--color-text-muted);">Half Days</div>
+                <div style="font-size: 1.15rem; font-weight: bold; color: var(--color-warning);" id="slip-half-days">0</div>
+              </div>
+              <div style="padding: 10px; background: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.7rem; color: var(--color-text-muted);">Approved Leave</div>
+                <div style="font-size: 1.15rem; font-weight: bold; color: var(--color-purple);" id="slip-leave-days">0</div>
+              </div>
+              <div style="padding: 10px; background: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.7rem; color: var(--color-text-muted);">Absent Days</div>
+                <div style="font-size: 1.15rem; font-weight: bold; color: var(--color-error);" id="slip-absent-days">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Earnings vs Deductions Breakdown -->
+          <div class="payslip-table-grid">
+            <!-- Earnings -->
+            <div>
+              <h4 style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-3);">
+                Earnings
+              </h4>
+              <div class="summary-row">
+                <span>Basic Monthly Salary</span>
+                <strong id="slip-basic-salary">PKR 0.00</strong>
+              </div>
+              <div class="summary-row">
+                <span>Calculated Per-Day Rate</span>
+                <span id="slip-per-day-rate" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--color-text-secondary);">PKR 0.00 / day</span>
+              </div>
+              <div class="summary-row">
+                <span>Authorized Paid Leave</span>
+                <span style="color: var(--color-success); font-weight: 500;">No Deduction</span>
+              </div>
+              <div class="summary-row total-row">
+                <span>Total Gross Earnings</span>
+                <span id="slip-total-gross">PKR 0.00</span>
+              </div>
+            </div>
+
+            <!-- Deductions -->
+            <div>
+              <h4 style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-3);">
+                Deductions
+              </h4>
+              <div class="summary-row">
+                <span>Absence Deduction (<span id="slip-absent-count-text">0</span> days)</span>
+                <span id="slip-absent-deduction" style="color: var(--color-error);">PKR 0.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Half-Day Deduction (<span id="slip-half-count-text">0</span> half days @ 50%)</span>
+                <span id="slip-half-deduction" style="color: var(--color-warning);">PKR 0.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Late Arrival Penalties</span>
+                <span style="color: var(--color-text-muted);">PKR 0.00 (Standard)</span>
+              </div>
+              <div class="summary-row total-row">
+                <span>Total Deductions</span>
+                <span id="slip-total-deductions" style="color: var(--color-error);">PKR 0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NET SALARY PAYABLE CALLOUT -->
+          <div style="background: linear-gradient(135deg, #17233B, #1E293B); color: white; padding: var(--space-5); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-6); box-shadow: var(--shadow-md);">
+            <div>
+              <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Net Payable Salary</div>
+              <div style="font-size: 0.8rem; color: #CBD5E1;">Direct Bank Transfer / Local Currency</div>
+            </div>
+            <div style="font-size: 1.85rem; font-weight: bold; letter-spacing: -0.02em;" id="slip-net-salary">
+              PKR 0.00
+            </div>
+          </div>
+
+          <!-- Signatures Footer -->
+          <div style="display: flex; justify-content: space-between; margin-top: var(--space-12); padding-top: var(--space-6); border-top: 1px dashed var(--color-border); font-size: 0.8rem; color: var(--color-text-muted);">
+            <div style="text-align: center; min-width: 180px;">
+              <div style="border-bottom: 1px solid var(--color-border); height: 35px; margin-bottom: 6px;"></div>
+              <span>Employee Signature</span>
+            </div>
+            <div style="text-align: center; min-width: 180px;">
+              <div style="border-bottom: 1px solid var(--color-border); height: 35px; margin-bottom: 6px;"></div>
+              <span>Authorized HR Manager</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="../js/storage.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script src="../js/leave.js"></script>
+  <script src="../js/payroll.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    const PayslipPage = (() => {
+      let currentUser = null;
+
+      function init() {
+        currentUser = Auth.requireAuth();
+        if (!currentUser) return;
+
+        UI.initCommonLayout('payslip', currentUser);
+
+        const company = Storage.getCompany() || { name: 'HCM Lite' };
+        document.getElementById('slip-company-name').textContent = company.name;
+
+        setupSelectors();
+        renderCurrentPayslip();
+
+        document.getElementById('btn-print-payslip').onclick = () => {
+          window.print();
+        };
+      }
+
+      function setupSelectors() {
+        const isAdmin = currentUser.role === 'admin';
+        const empSelectWrap = document.getElementById('admin-employee-select-wrap');
+        const empSelect = document.getElementById('select-payslip-employee');
+        const monthSelect = document.getElementById('select-payslip-month');
+        const yearSelect = document.getElementById('select-payslip-year');
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+
+        // Month selector
+        monthSelect.innerHTML = '';
+        for (let m = 1; m <= 12; m++) {
+          const d = new Date(currentYear, m - 1, 1);
+          const mName = d.toLocaleString('default', { month: 'long' });
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = mName;
+          if (m === currentMonth) opt.selected = true;
+          monthSelect.appendChild(opt);
+        }
+
+        // Year selector
+        yearSelect.value = currentYear;
+
+        // Employee selector logic
+        if (isAdmin) {
+          empSelectWrap.style.display = 'block';
+          const employees = Storage.getUsers().filter(u => u.role === 'employee');
+
+          if (employees.length === 0) {
+            empSelect.innerHTML = '<option value="">No employees</option>';
+          } else {
+            empSelect.innerHTML = employees.map(emp => `
+              <option value="${emp.id}">${UI.escapeHTML(emp.name)} (${emp.id})</option>
+            `).join('');
+          }
+
+          empSelect.onchange = renderCurrentPayslip;
+        } else {
+          // Employee portal view: locked to current logged-in employee
+          empSelectWrap.style.display = 'none';
+        }
+
+        monthSelect.onchange = renderCurrentPayslip;
+        yearSelect.onchange = renderCurrentPayslip;
+      }
+
+      function renderCurrentPayslip() {
+        const isAdmin = currentUser.role === 'admin';
+        let targetEmpId = null;
+
+        if (isAdmin) {
+          const empSelect = document.getElementById('select-payslip-employee');
+          targetEmpId = empSelect.value;
+        } else {
+          targetEmpId = currentUser.id;
+        }
+
+        const emptyState = document.getElementById('payslip-empty-state');
+        const sheet = document.getElementById('payslip-sheet-container');
+
+        if (!targetEmpId) {
+          emptyState.style.display = 'flex';
+          sheet.style.display = 'none';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        sheet.style.display = 'block';
+
+        const month = parseInt(document.getElementById('select-payslip-month').value, 10);
+        const year = parseInt(document.getElementById('select-payslip-year').value, 10);
+
+        try {
+          const slip = Payroll.calculateMonthlyPayslip(targetEmpId, year, month);
+
+          document.getElementById('slip-period-badge').textContent = `${slip.monthName} ${slip.year}`;
+          document.getElementById('slip-ref-code').textContent = `PS-${slip.year}${String(slip.month).padStart(2, '0')}-${slip.employeeId}`;
+
+          document.getElementById('slip-emp-name').textContent = slip.employeeName;
+          document.getElementById('slip-emp-id').textContent = slip.employeeId;
+          document.getElementById('slip-emp-dept').textContent = slip.department;
+          document.getElementById('slip-emp-designation').textContent = slip.designation;
+
+          document.getElementById('slip-working-days').textContent = slip.workingDaysInMonth;
+          document.getElementById('slip-present-days').textContent = slip.presentDays;
+          document.getElementById('slip-late-days').textContent = slip.lateDays;
+          document.getElementById('slip-half-days').textContent = slip.halfDays;
+          document.getElementById('slip-leave-days').textContent = slip.approvedLeaveDays;
+          document.getElementById('slip-absent-days').textContent = slip.absentDays;
+
+          document.getElementById('slip-basic-salary').textContent = Payroll.formatCurrency(slip.monthlySalary);
+          document.getElementById('slip-per-day-rate').textContent = `${Payroll.formatCurrency(slip.perDaySalary)} / day`;
+          document.getElementById('slip-total-gross').textContent = Payroll.formatCurrency(slip.monthlySalary);
+
+          document.getElementById('slip-absent-count-text').textContent = slip.absentDays;
+          document.getElementById('slip-absent-deduction').textContent = `− ${Payroll.formatCurrency(slip.absentDeduction)}`;
+
+          document.getElementById('slip-half-count-text').textContent = slip.halfDays;
+          document.getElementById('slip-half-deduction').textContent = `− ${Payroll.formatCurrency(slip.halfDayDeduction)}`;
+
+          document.getElementById('slip-total-deductions').textContent = `− ${Payroll.formatCurrency(slip.totalDeductions)}`;
+          document.getElementById('slip-net-salary').textContent = Payroll.formatCurrency(slip.netSalary);
+        } catch (err) {
+          UI.showToast(err.message, 'error');
+        }
+      }
+
+      return { init };
+    })();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      PayslipPage.init();
+    });
+  </script>
+</body>
+</html>

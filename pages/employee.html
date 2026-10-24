@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="HCM Lite Employee Self-Service Portal — Check-in/out, apply for leave, monitor work hours, and view company notices.">
+  <title>Employee Portal — HCM Lite</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar-backdrop"></div>
+    <aside class="sidebar"></aside>
+
+    <div class="main-wrapper">
+      <header class="topbar"></header>
+
+      <main class="content-body">
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title" id="employee-welcome-title">Welcome back!</h1>
+            <p class="page-description">Manage your daily work shift, apply for leaves, and inspect your monthly payroll.</p>
+          </div>
+          <div class="page-actions">
+            <a href="payslip.html" class="btn btn-outline">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              <span>View My Payslip</span>
+            </a>
+            <button class="btn btn-primary" id="btn-open-apply-leave">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Apply for Leave</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Metric KPI Cards for Employee -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Today's Status</span>
+              <div class="metric-icon-wrap metric-icon-green" id="emp-status-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+            </div>
+            <div class="metric-body">
+              <span class="metric-value" id="emp-today-status-text" style="font-size: 1.35rem;">Not Checked In</span>
+              <span class="metric-subtext" id="emp-today-status-sub">Ready for check-in</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Check-in Time</span>
+              <div class="metric-icon-wrap metric-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+            </div>
+            <div class="metric-body">
+              <span class="metric-value" id="emp-checkin-time">--:--:--</span>
+              <span class="metric-subtext" id="emp-late-tag">Pending</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Today's Work Hours</span>
+              <div class="metric-icon-wrap metric-icon-purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+              </div>
+            </div>
+            <div class="metric-body">
+              <span class="metric-value" id="emp-work-hours">0.0h</span>
+              <span class="metric-subtext">Min. 5.0h for full day</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Leave Balance</span>
+              <div class="metric-icon-wrap metric-icon-amber">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </div>
+            </div>
+            <div class="metric-body">
+              <span class="metric-value" id="emp-leave-balance">0 Days</span>
+              <span class="metric-subtext" id="emp-leave-quota-sub">Annual balance</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Attendance Clock-in / Out Action Card -->
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Attendance Punch Desk</h2>
+              <span class="card-subtitle">Clock in at the start of your shift and clock out when you depart</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4);">
+              <div>
+                <div style="font-size: 1.1rem; font-weight: var(--font-weight-semibold); color: var(--color-text-main); margin-bottom: 4px;" id="desk-status-headline">
+                  Ready to start your workday?
+                </div>
+                <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);" id="desk-status-detail">
+                  Office start time: <strong id="desk-office-start">09:00</strong> | Grace period: <strong id="desk-grace-mins">15 mins</strong>
+                </div>
+              </div>
+
+              <div id="attendance-action-container">
+                <!-- Check In Button (shown when not checked in) -->
+                <button class="btn btn-primary btn-lg" id="btn-clock-in" style="min-width: 170px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span>Check In Now</span>
+                </button>
+
+                <!-- Check Out Button (shown when checked in and not checked out) -->
+                <button class="btn btn-danger btn-lg" id="btn-clock-out" style="min-width: 170px; display: none;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                  <span>Check Out</span>
+                </button>
+
+                <!-- Completed Badge (shown when checked out) -->
+                <span id="badge-shift-completed" class="badge badge-success" style="padding: 8px 16px; font-size: var(--font-size-sm); display: none;">
+                  Shift Completed Today
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Attendance History Table -->
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3 class="card-title">My Attendance History</h3>
+              <span class="card-subtitle">Daily check-in logs, worked durations, and shift statuses</span>
+            </div>
+            <div class="card-actions">
+              <select id="attendance-month-filter" class="form-select" style="min-width: 160px;"></select>
+            </div>
+          </div>
+          <div class="card-body-no-padding">
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Verification</th>
+                  </tr>
+                </thead>
+                <tbody id="emp-attendance-history-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Leave Requests & Announcements (Grid 1-1) -->
+        <div class="grid-2col">
+          <!-- Leave Requests Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h3 class="card-title">My Leave Applications</h3>
+                <span class="card-subtitle">Track your submitted time-off requests</span>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary btn-sm" id="btn-quick-apply-leave">Apply</button>
+              </div>
+            </div>
+            <div class="card-body" id="emp-leaves-list"></div>
+          </div>
+
+          <!-- Announcements Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h3 class="card-title">Company Announcements</h3>
+                <span class="card-subtitle">Recent team notices and organizational updates</span>
+              </div>
+            </div>
+            <div class="card-body" id="emp-announcements-list"></div>
+          </div>
+        </div>
+
+        <!-- Smart HR Helper -->
+        <div style="margin-top: var(--space-6);">
+          <div id="employee-helper-container"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- VERIFICATION MODAL (Camera & GPS) -->
+  <div class="modal-backdrop" id="verification-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Attendance Verification</h3>
+        <button class="modal-close" id="close-verification-modal">${UI.ICONS.x}</button>
+      </div>
+      <div class="modal-body">
+        <!-- Camera Preview Container (if camera verification enabled) -->
+        <div id="camera-check-section" class="camera-verification-box" style="display: none; margin-bottom: var(--space-4);">
+          <div class="camera-preview-wrapper">
+            <video id="webcam-video" class="camera-video" autoplay playsinline muted></video>
+            <div class="face-oval-guide" id="face-guide"></div>
+            <div class="camera-status-overlay" id="camera-status-overlay">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <span id="camera-status-label">Initializing camera...</span>
+            </div>
+          </div>
+          <p style="font-size: 0.72rem; color: var(--color-text-muted); text-align: center; max-width: 380px;">
+            Position your face inside the oval guide. Face detection confirms you are present at your workstation. Photos or biometric descriptors are never stored.
+          </p>
+        </div>
+
+        <!-- GPS Verification Card (if GPS verification enabled) -->
+        <div id="gps-check-section" class="gps-status-card" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; font-weight: var(--font-weight-semibold);">
+            <span>Office GPS Geofence Check</span>
+            <span id="gps-indicator-badge" class="badge badge-warning">Checking...</span>
+          </div>
+          <div class="gps-status-row">
+            <span>Distance from Office:</span>
+            <strong id="gps-distance-text">Calculating...</strong>
+          </div>
+          <div class="gps-status-row">
+            <span>Allowed Office Radius:</span>
+            <strong id="gps-radius-text">--</strong>
+          </div>
+          <div class="gps-status-row">
+            <span>GPS Accuracy:</span>
+            <strong id="gps-accuracy-text">--</strong>
+          </div>
+        </div>
+
+        <div id="verification-error-box" style="display: none; color: var(--color-error); font-size: var(--font-size-xs); margin-top: var(--space-3); padding: var(--space-2); background: var(--color-error-bg); border-radius: var(--radius-sm);"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="cancel-verification-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-verification-btn" disabled>Confirm Check In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLY LEAVE MODAL -->
+  <div class="modal-backdrop" id="apply-leave-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Apply for Time Off</h3>
+        <button class="modal-close" id="close-apply-leave-modal">${UI.ICONS.x}</button>
+      </div>
+      <form id="apply-leave-form">
+        <div class="modal-body">
+          <div style="background-color: var(--color-surface-subtle); padding: var(--space-3); border-radius: var(--radius-md); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">Available Annual Quota:</span>
+            <strong id="modal-leave-balance" style="color: var(--color-primary-accent);">0 Days</strong>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Leave Type <span class="required">*</span></label>
+            <select id="leave-type-select" class="form-select" required>
+              <option value="Casual">Casual Leave</option>
+              <option value="Sick">Sick Leave</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">From Date <span class="required">*</span></label>
+              <input type="date" id="leave-from-date" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">To Date <span class="required">*</span></label>
+              <input type="date" id="leave-to-date" class="form-input" required>
+            </div>
+          </div>
+
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: var(--space-3);">
+            Working days requested (skipping weekends &amp; holidays): <strong id="calculated-work-days">0 day(s)</strong>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Reason for Absence <span class="required">*</span></label>
+            <textarea id="leave-reason-input" class="form-textarea" rows="3" required placeholder="Please state the purpose of your time off..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancel-leave-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submit-leave-btn">Submit Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="../js/storage.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script src="../js/leave.js"></script>
+  <script src="../js/payroll.js"></script>
+  <script src="../js/helper.js"></script>
+  <script src="../js/camera.js"></script>
+  <script src="../js/geolocation.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    const EmployeePortal = (() => {
+      let currentUser = null;
+      let verificationMeta = { method: 'standard', faceVerified: false, location: null };
+
+      function init() {
+        currentUser = Auth.requireAuth();
+        if (!currentUser) return;
+
+        UI.initCommonLayout('employee', currentUser);
+
+        document.getElementById('employee-welcome-title').textContent = `Hello, ${currentUser.name}!`;
+
+        loadDashboardMetrics();
+        loadAttendanceHistory();
+        loadLeavesList();
+        AnnouncementManager.renderAnnouncementsList('emp-announcements-list', false);
+        SmartHelper.initWidget('employee-helper-container', currentUser);
+
+        setupAttendanceButtons();
+        setupApplyLeaveModal();
+      }
+
+      function loadDashboardMetrics() {
+        const company = Storage.getCompany() || { startTime: '09:00', graceMinutes: 15, leaveQuota: 18 };
+        const balance = Leave.getLeaveBalance(currentUser.id);
+
+        document.getElementById('desk-office-start').textContent = company.startTime || '09:00';
+        document.getElementById('desk-grace-mins').textContent = `${company.graceMinutes || 15} mins`;
+
+        document.getElementById('emp-leave-balance').textContent = `${balance.remainingDays} Days`;
+        document.getElementById('emp-leave-quota-sub').textContent = `${balance.usedDays} used of ${balance.yearlyQuota} quota`;
+
+        const todayRecord = Storage.getTodayAttendanceForEmployee(currentUser.id);
+
+        const clockInBtn = document.getElementById('btn-clock-in');
+        const clockOutBtn = document.getElementById('btn-clock-out');
+        const completedBadge = document.getElementById('badge-shift-completed');
+
+        const statusText = document.getElementById('emp-today-status-text');
+        const statusSub = document.getElementById('emp-today-status-sub');
+        const checkInTimeEl = document.getElementById('emp-checkin-time');
+        const lateTag = document.getElementById('emp-late-tag');
+        const workHoursEl = document.getElementById('emp-work-hours');
+
+        const deskHeadline = document.getElementById('desk-status-headline');
+        const deskDetail = document.getElementById('desk-status-detail');
+
+        if (!todayRecord) {
+          // Not checked in yet
+          clockInBtn.style.display = 'inline-flex';
+          clockOutBtn.style.display = 'none';
+          completedBadge.style.display = 'none';
+
+          statusText.textContent = 'Not Checked In';
+          statusSub.textContent = 'Awaiting arrival';
+          checkInTimeEl.textContent = '--:--:--';
+          lateTag.textContent = 'Pending';
+          workHoursEl.textContent = '0.0h';
+
+          deskHeadline.textContent = 'Ready to start your workday?';
+          deskDetail.textContent = `Office start time is ${company.startTime} (Grace period: ${company.graceMinutes}m)`;
+        } else if (!todayRecord.checkOutTimestamp) {
+          // Checked in, shift in progress
+          clockInBtn.style.display = 'none';
+          clockOutBtn.style.display = 'inline-flex';
+          completedBadge.style.display = 'none';
+
+          statusText.textContent = todayRecord.isLate ? 'Late (Working)' : 'Present (Working)';
+          statusSub.textContent = 'Shift currently in progress';
+          checkInTimeEl.textContent = todayRecord.checkIn;
+          lateTag.textContent = todayRecord.isLate ? 'Late Arrival' : 'On Time';
+          lateTag.style.color = todayRecord.isLate ? 'var(--color-warning)' : 'var(--color-success)';
+
+          // Compute elapsed hours
+          const now = new Date();
+          const elapsed = Math.round(((now.getTime() - todayRecord.checkInTimestamp) / 3600000) * 10) / 10;
+          workHoursEl.textContent = `${elapsed}h`;
+
+          deskHeadline.textContent = `Clocked in at ${todayRecord.checkIn}`;
+          deskDetail.textContent = `Don't forget to check out before leaving to record full work hours.`;
+        } else {
+          // Completed
+          clockInBtn.style.display = 'none';
+          clockOutBtn.style.display = 'none';
+          completedBadge.style.display = 'inline-block';
+
+          statusText.textContent = todayRecord.status;
+          statusSub.textContent = 'Shift finalized for today';
+          checkInTimeEl.textContent = todayRecord.checkIn;
+          lateTag.textContent = todayRecord.isLate ? 'Late Arrival' : 'On Time';
+          workHoursEl.textContent = `${todayRecord.workHours}h`;
+
+          deskHeadline.textContent = `Shift completed (${todayRecord.workHours} hours logged)`;
+          deskDetail.textContent = `Checked out at ${todayRecord.checkOut}. Good job today!`;
+        }
+      }
+
+      function setupAttendanceButtons() {
+        const clockInBtn = document.getElementById('btn-clock-in');
+        const clockOutBtn = document.getElementById('btn-clock-out');
+
+        clockInBtn.onclick = () => {
+          const company = Storage.getCompany() || {};
+          const needsCamera = !!company.cameraVerification;
+          const needsGps = !!company.gpsVerification;
+
+          if (needsCamera || needsGps) {
+            openVerificationModal(needsCamera, needsGps);
+          } else {
+            // Direct standard check in
+            try {
+              Attendance.checkIn(currentUser.id, { method: 'standard' });
+              UI.showToast('Checked in successfully! Have a great day.', 'success');
+              loadDashboardMetrics();
+              loadAttendanceHistory();
+            } catch (err) {
+              UI.showToast(err.message, 'error');
+            }
+          }
+        };
+
+        clockOutBtn.onclick = () => {
+          UI.showConfirmModal({
+            title: 'Check Out',
+            message: 'Are you sure you want to end your shift and clock out for today?',
+            confirmText: 'Check Out',
+            onConfirm: () => {
+              try {
+                const rec = Attendance.checkOut(currentUser.id);
+                UI.showToast(`Checked out at ${rec.checkOut}. Total hours: ${rec.workHours}h (${rec.status})`, 'success');
+                loadDashboardMetrics();
+                loadAttendanceHistory();
+              } catch (err) {
+                UI.showToast(err.message, 'error');
+              }
+            }
+          });
+        };
+      }
+
+      // Verification Modal Handling
+      function openVerificationModal(needsCamera, needsGps) {
+        const modal = document.getElementById('verification-modal');
+        const cameraSection = document.getElementById('camera-check-section');
+        const gpsSection = document.getElementById('gps-check-section');
+        const videoEl = document.getElementById('webcam-video');
+        const faceGuide = document.getElementById('face-guide');
+        const statusLabel = document.getElementById('camera-status-label');
+        const confirmBtn = document.getElementById('confirm-verification-btn');
+        const errorBox = document.getElementById('verification-error-box');
+
+        confirmBtn.disabled = true;
+        errorBox.style.display = 'none';
+
+        let cameraReady = !needsCamera;
+        let gpsReady = !needsGps;
+
+        function checkReadiness() {
+          if (cameraReady && gpsReady) {
+            confirmBtn.disabled = false;
+          }
+        }
+
+        // Camera setup
+        if (needsCamera) {
+          cameraSection.style.display = 'flex';
+          statusLabel.textContent = 'Requesting camera access...';
+          CameraVerification.startCamera(videoEl).then(() => {
+            statusLabel.textContent = 'Position your face in the oval';
+            CameraVerification.startFaceDetection(videoEl, (res) => {
+              statusLabel.textContent = res.message;
+              if (res.detected) {
+                faceGuide.classList.add('face-detected');
+                cameraReady = true;
+                verificationMeta.faceVerified = true;
+                checkReadiness();
+              } else {
+                faceGuide.classList.remove('face-detected');
+              }
+            });
+          }).catch(err => {
+            errorBox.style.display = 'block';
+            errorBox.textContent = err.message;
+          });
+        } else {
+          cameraSection.style.display = 'none';
+        }
+
+        // GPS setup
+        if (needsGps) {
+          gpsSection.style.display = 'flex';
+          const distText = document.getElementById('gps-distance-text');
+          const radText = document.getElementById('gps-radius-text');
+          const accText = document.getElementById('gps-accuracy-text');
+          const badge = document.getElementById('gps-indicator-badge');
+
+          GeoLocationService.verifyOfficeProximity().then(res => {
+            distText.textContent = `${res.distance} meters`;
+            radText.textContent = `Within ${res.officeRadius} meters`;
+            accText.textContent = `±${res.accuracy}m`;
+
+            if (res.isInside) {
+              badge.textContent = 'Inside Office Area';
+              badge.className = 'badge badge-success';
+              gpsReady = true;
+              verificationMeta.location = { lat: res.currentLatitude, lng: res.currentLongitude, distance: res.distance };
+              checkReadiness();
+            } else {
+              badge.textContent = 'Outside Office Boundary';
+              badge.className = 'badge badge-error';
+              errorBox.style.display = 'block';
+              errorBox.textContent = `You are ${res.distance} meters away from the office. Allowed check-in radius is ${res.officeRadius} meters.`;
+            }
+          }).catch(err => {
+            errorBox.style.display = 'block';
+            errorBox.textContent = err.message;
+          });
+        } else {
+          gpsSection.style.display = 'none';
+        }
+
+        const closeModal = () => {
+          modal.classList.remove('active');
+          if (needsCamera) CameraVerification.stopCamera(videoEl);
+        };
+
+        document.getElementById('close-verification-modal').onclick = closeModal;
+        document.getElementById('cancel-verification-btn').onclick = closeModal;
+
+        confirmBtn.onclick = () => {
+          closeModal();
+          try {
+            verificationMeta.method = needsCamera && needsGps ? 'camera+gps' : (needsCamera ? 'camera' : 'gps');
+            Attendance.checkIn(currentUser.id, verificationMeta);
+            UI.showToast('Attendance verified and recorded successfully!', 'success');
+            loadDashboardMetrics();
+            loadAttendanceHistory();
+          } catch (err) {
+            UI.showToast(err.message, 'error');
+          }
+        };
+
+        modal.classList.add('active');
+      }
+
+      function loadAttendanceHistory() {
+        const monthFilter = document.getElementById('attendance-month-filter');
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+
+        if (monthFilter.children.length === 0) {
+          for (let m = 1; m <= 12; m++) {
+            const d = new Date(currentYear, m - 1, 1);
+            const mName = d.toLocaleString('default', { month: 'long' });
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = `${mName} ${currentYear}`;
+            if (m === currentMonth) opt.selected = true;
+            monthFilter.appendChild(opt);
+          }
+          monthFilter.onchange = () => renderHistoryRows(parseInt(monthFilter.value, 10));
+        }
+
+        renderHistoryRows(parseInt(monthFilter.value, 10));
+      }
+
+      function renderHistoryRows(selectedMonth) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const stats = Attendance.getEmployeeMonthlyAttendance(currentUser.id, year, selectedMonth);
+        const tbody = document.getElementById('emp-attendance-history-body');
+
+        if (!stats || stats.dailyBreakdown.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No attendance recorded for this month.</td></tr>`;
+          return;
+        }
+
+        // Filter to days that are past or have attendance/leave
+        const relevantDays = stats.dailyBreakdown.filter(d => d.status !== 'Upcoming' && d.status !== 'Non-Working Day');
+
+        if (relevantDays.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--color-text-muted);">No working days recorded yet for this month.</td></tr>`;
+          return;
+        }
+
+        // Show latest dates first
+        relevantDays.reverse();
+
+        tbody.innerHTML = relevantDays.map(d => {
+          let badgeClass = 'badge-muted';
+          if (d.status === 'Present') badgeClass = 'badge-success';
+          else if (d.status === 'Late' || d.status === 'Half Day') badgeClass = 'badge-warning';
+          else if (d.status.startsWith('On Leave')) badgeClass = 'badge-purple';
+          else if (d.status === 'Absent') badgeClass = 'badge-error';
+
+          const att = d.attendance;
+
+          return `
+            <tr>
+              <td><strong>${d.date}</strong></td>
+              <td>${d.dayOfWeek}</td>
+              <td>${att ? att.checkIn : '—'}</td>
+              <td>${att && att.checkOut ? att.checkOut : (att ? '<em>In Progress</em>' : '—')}</td>
+              <td>${att && att.workHours !== null ? `${att.workHours}h` : '—'}</td>
+              <td>
+                <span class="badge ${badgeClass}">
+                  <span class="badge-dot"></span>
+                  ${d.status}
+                </span>
+              </td>
+              <td style="font-size: var(--font-size-xs); color: var(--color-text-muted); text-transform: capitalize;">
+                ${att ? (att.verificationMethod || 'Standard') : '—'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function loadLeavesList() {
+        const container = document.getElementById('emp-leaves-list');
+        const leaves = Storage.getLeavesForEmployee(currentUser.id);
+
+        if (leaves.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state" style="padding: var(--space-6);">
+              <div class="empty-state-icon" style="width: 44px; height: 44px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </div>
+              <div class="empty-state-title" style="font-size: var(--font-size-sm);">No Leave Requests Yet</div>
+              <div class="empty-state-description" style="font-size: var(--font-size-xs);">Need time off? Click Apply for Leave to submit a request.</div>
+            </div>
+          `;
+          return;
+        }
+
+        // Reverse chronologically
+        leaves.reverse();
+
+        container.innerHTML = leaves.map(l => {
+          let badgeClass = 'badge-warning';
+          if (l.status === 'Approved') badgeClass = 'badge-success';
+          else if (l.status === 'Rejected') badgeClass = 'badge-error';
+
+          return `
+            <div class="card" style="margin-bottom: var(--space-3); border-left: 3px solid ${l.status === 'Approved' ? 'var(--color-success)' : (l.status === 'Rejected' ? 'var(--color-error)' : 'var(--color-warning)')};">
+              <div class="card-body" style="padding: var(--space-4);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                  <div>
+                    <strong style="font-size: var(--font-size-sm);">${l.type} Leave (${l.days} day${l.days === 1 ? '' : 's'})</strong>
+                    <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${l.fromDate} to ${l.toDate}</div>
+                  </div>
+                  <span class="badge ${badgeClass}">${l.status}</span>
+                </div>
+                <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: 4px;">
+                  Reason: <em>"${UI.escapeHTML(l.reason)}"</em>
+                </div>
+                ${l.adminComment ? `
+                  <div style="font-size: 0.72rem; color: var(--color-text-muted);">
+                    Admin Remark: "${UI.escapeHTML(l.adminComment)}"
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function setupApplyLeaveModal() {
+        const modal = document.getElementById('apply-leave-modal');
+        const openBtn = document.getElementById('btn-open-apply-leave');
+        const quickOpenBtn = document.getElementById('btn-quick-apply-leave');
+        const closeBtn = document.getElementById('close-apply-leave-modal');
+        const cancelBtn = document.getElementById('cancel-leave-btn');
+        const form = document.getElementById('apply-leave-form');
+
+        const fromInput = document.getElementById('leave-from-date');
+        const toInput = document.getElementById('leave-to-date');
+        const workDaysLabel = document.getElementById('calculated-work-days');
+        const balanceLabel = document.getElementById('modal-leave-balance');
+
+        const openModal = () => {
+          form.reset();
+          const balance = Leave.getLeaveBalance(currentUser.id);
+          balanceLabel.textContent = `${balance.remainingDays} Days remaining`;
+
+          const todayStr = Attendance.getLocalDateString();
+          fromInput.value = todayStr;
+          toInput.value = todayStr;
+          updateCalculatedDays();
+          modal.classList.add('active');
+        };
+
+        const closeModal = () => { modal.classList.remove('active'); form.reset(); };
+
+        if (openBtn) openBtn.onclick = openModal;
+        if (quickOpenBtn) quickOpenBtn.onclick = openModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+
+        function updateCalculatedDays() {
+          const from = fromInput.value;
+          const to = toInput.value;
+          if (from && to && from <= to) {
+            const company = Storage.getCompany() || { workingDays: [1,2,3,4,5] };
+            const holidays = Storage.getHolidays();
+            const days = Leave.calculateWorkingDays(from, to, company, holidays);
+            workDaysLabel.textContent = `${days} working day(s)`;
+          } else {
+            workDaysLabel.textContent = '0 day(s)';
+          }
+        }
+
+        fromInput.onchange = updateCalculatedDays;
+        toInput.onchange = updateCalculatedDays;
+
+        form.onsubmit = (e) => {
+          e.preventDefault();
+          const type = document.getElementById('leave-type-select').value;
+          const fromDate = fromInput.value;
+          const toDate = toInput.value;
+          const reason = document.getElementById('leave-reason-input').value;
+
+          try {
+            Leave.applyLeave({
+              employeeId: currentUser.id,
+              type,
+              fromDate,
+              toDate,
+              reason
+            });
+
+            UI.showToast('Leave application submitted for approval!', 'success');
+            closeModal();
+            loadLeavesList();
+            loadDashboardMetrics();
+          } catch (err) {
+            UI.showToast(err.message, 'error');
+          }
+        };
+      }
+
+      return { init };
+    })();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      EmployeePortal.init();
+    });
+  </script>
+</body>
+</html>

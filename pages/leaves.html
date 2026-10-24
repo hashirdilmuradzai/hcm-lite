@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Review, approve, and manage employee leave requests and annual quotas in HCM Lite.">
+  <title>Leave Requests — HCM Lite</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar-backdrop"></div>
+    <aside class="sidebar"></aside>
+
+    <div class="main-wrapper">
+      <header class="topbar"></header>
+
+      <main class="content-body">
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Leave Management</h1>
+            <p class="page-description">Review employee time-off applications, inspect annual balances, and process decisions.</p>
+          </div>
+          <div class="page-actions">
+            <span class="badge badge-info" id="yearly-quota-badge">Annual Quota: 18 Days</span>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-body" style="padding: var(--space-4);">
+            <div class="filter-toolbar" style="margin-bottom: 0;">
+              <div class="filter-group">
+                <div class="search-input-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input type="text" id="leave-search-input" class="form-input" placeholder="Search by employee name, ID, reason...">
+                </div>
+
+                <select id="leave-status-filter" class="form-select" style="min-width: 160px;">
+                  <option value="">All Statuses</option>
+                  <option value="Pending" selected>Pending Only</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+
+                <select id="leave-type-filter" class="form-select" style="min-width: 140px;">
+                  <option value="">All Types</option>
+                  <option value="Casual">Casual Leave</option>
+                  <option value="Sick">Sick Leave</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <span id="leave-count-label" style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+                  Showing 0 requests
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leaves Table Card -->
+        <div class="card">
+          <div class="card-body-no-padding">
+            <!-- Empty state -->
+            <div class="empty-state" id="leaves-empty-state" style="display: none;">
+              <div class="empty-state-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </div>
+              <h3 class="empty-state-title">No leave requests found</h3>
+              <p class="empty-state-description" id="leaves-empty-desc">There are no leave applications matching your current filter criteria.</p>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive" id="leaves-table-container">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Type</th>
+                    <th>Dates Requested</th>
+                    <th>Work Days</th>
+                    <th>Reason</th>
+                    <th>Remaining Quota</th>
+                    <th>Status</th>
+                    <th>Admin Comment</th>
+                    <th style="text-align: right;">Decision</th>
+                  </tr>
+                </thead>
+                <tbody id="leaves-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="../js/storage.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script src="../js/leave.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    const LeavesController = (() => {
+      function init() {
+        const user = Auth.requireAuth('admin');
+        if (!user) return;
+
+        UI.initCommonLayout('leaves', user);
+
+        const company = Storage.getCompany() || { leaveQuota: 18 };
+        document.getElementById('yearly-quota-badge').textContent = `Annual Quota: ${company.leaveQuota || 18} Working Days`;
+
+        renderLeavesTable();
+        setupFilters();
+      }
+
+      function renderLeavesTable() {
+        const query = document.getElementById('leave-search-input').value.toLowerCase().trim();
+        const statusFilter = document.getElementById('leave-status-filter').value;
+        const typeFilter = document.getElementById('leave-type-filter').value;
+
+        let leaves = Storage.getLeaves();
+
+        // Sort descending by request date / creation
+        leaves.sort((a, b) => (b.createdAt || b.id).localeCompare(a.createdAt || a.id));
+
+        if (statusFilter) {
+          leaves = leaves.filter(l => l.status === statusFilter);
+        }
+
+        if (typeFilter) {
+          leaves = leaves.filter(l => l.type === typeFilter);
+        }
+
+        if (query) {
+          leaves = leaves.filter(l => {
+            const emp = Storage.getUserById(l.employeeId);
+            const empName = emp ? emp.name.toLowerCase() : '';
+            return empName.includes(query) ||
+                   String(l.employeeId).toLowerCase().includes(query) ||
+                   l.reason.toLowerCase().includes(query) ||
+                   l.type.toLowerCase().includes(query);
+          });
+        }
+
+        const countLabel = document.getElementById('leave-count-label');
+        if (countLabel) countLabel.textContent = `Showing ${leaves.length} request${leaves.length === 1 ? '' : 's'}`;
+
+        const emptyState = document.getElementById('leaves-empty-state');
+        const tableContainer = document.getElementById('leaves-table-container');
+        const tableBody = document.getElementById('leaves-table-body');
+
+        if (leaves.length === 0) {
+          if (emptyState) emptyState.style.display = 'flex';
+          if (tableContainer) tableContainer.style.display = 'none';
+        } else {
+          if (emptyState) emptyState.style.display = 'none';
+          if (tableContainer) tableContainer.style.display = 'block';
+
+          if (tableBody) {
+            tableBody.innerHTML = leaves.map(leave => {
+              const emp = Storage.getUserById(leave.employeeId);
+              const empName = emp ? emp.name : 'Unknown';
+              const empDept = emp ? (emp.department || 'General') : 'N/A';
+              const balance = Leave.getLeaveBalance(leave.employeeId);
+
+              let badgeClass = 'badge-warning';
+              if (leave.status === 'Approved') badgeClass = 'badge-success';
+              else if (leave.status === 'Rejected') badgeClass = 'badge-error';
+
+              const isPending = leave.status === 'Pending';
+
+              return `
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar-initials">${UI.getInitials(empName)}</div>
+                      <div class="user-cell-meta">
+                        <span class="user-cell-name">${UI.escapeHTML(empName)}</span>
+                        <span class="user-cell-id">${leave.employeeId} • ${UI.escapeHTML(empDept)}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge ${leave.type === 'Sick' ? 'badge-warning' : 'badge-info'}">${leave.type}</span></td>
+                  <td>
+                    <strong>${leave.fromDate}</strong> to <strong>${leave.toDate}</strong>
+                    <div style="font-size: 0.72rem; color: var(--color-text-muted);">Applied: ${leave.requestDate || 'N/A'}</div>
+                  </td>
+                  <td><strong>${leave.days} day(s)</strong></td>
+                  <td style="max-width: 220px; font-size: var(--font-size-xs); line-height: 1.4;">${UI.escapeHTML(leave.reason)}</td>
+                  <td>
+                    <span style="font-weight: var(--font-weight-semibold); color: ${balance.remainingDays < 3 ? 'var(--color-error)' : 'var(--color-text-main)'};">
+                      ${balance.remainingDays} / ${balance.yearlyQuota} days left
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge ${badgeClass}">
+                      <span class="badge-dot"></span>
+                      ${leave.status}
+                    </span>
+                  </td>
+                  <td style="font-size: var(--font-size-xs); color: var(--color-text-secondary); max-width: 180px;">
+                    ${leave.adminComment ? `<em>"${UI.escapeHTML(leave.adminComment)}"</em>` : '—'}
+                  </td>
+                  <td style="text-align: right;">
+                    ${isPending ? `
+                      <div style="display: inline-flex; gap: 4px;">
+                        <button class="btn btn-outline btn-sm reject-leave-btn" data-id="${leave.id}">Reject</button>
+                        <button class="btn btn-success btn-sm approve-leave-btn" data-id="${leave.id}">Approve</button>
+                      </div>
+                    ` : `
+                      <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Decided</span>
+                    `}
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            wireDecisionButtons();
+          }
+        }
+      }
+
+      function wireDecisionButtons() {
+        document.querySelectorAll('.approve-leave-btn').forEach(btn => {
+          btn.onclick = () => {
+            const id = btn.getAttribute('data-id');
+            App.showLeaveDecisionDialog(id, true);
+          };
+        });
+
+        document.querySelectorAll('.reject-leave-btn').forEach(btn => {
+          btn.onclick = () => {
+            const id = btn.getAttribute('data-id');
+            App.showLeaveDecisionDialog(id, false);
+          };
+        });
+      }
+
+      function setupFilters() {
+        document.getElementById('leave-search-input').oninput = renderLeavesTable;
+        document.getElementById('leave-status-filter').onchange = renderLeavesTable;
+        document.getElementById('leave-type-filter').onchange = renderLeavesTable;
+      }
+
+      return { init, renderLeavesTable };
+    })();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      LeavesController.init();
+    });
+  </script>
+</body>
+</html>

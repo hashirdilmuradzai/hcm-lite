@@ -1,0 +1,102 @@
+/* ==========================================================================
+   HCM Lite — Print Stylesheet (@media print)
+   Optimized for clean A4 payslips and monthly attendance reports
+   ========================================================================== */
+
+@media print {
+  /* Hide non-printable elements */
+  .sidebar,
+  .sidebar-backdrop,
+  .topbar,
+  .page-actions,
+  .filter-toolbar,
+  .btn,
+  .helper-widget,
+  #toast-container,
+  .modal-backdrop,
+  .card-actions,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-container {
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  .main-wrapper {
+    margin-left: 0 !important;
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  .content-body {
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .card {
+    border: 1px solid #CCCCCC !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    margin-bottom: 20px !important;
+  }
+
+  .card-header {
+    background-color: #F8F9FA !important;
+    border-bottom: 1px solid #CCCCCC !important;
+    padding: 10px 15px !important;
+  }
+
+  .table {
+    border: 1px solid #CCCCCC !important;
+    font-size: 10pt !important;
+    width: 100% !important;
+  }
+
+  .table th {
+    background-color: #F1F3F5 !important;
+    color: #000000 !important;
+    border-bottom: 1px solid #000000 !important;
+    padding: 6px 10px !important;
+  }
+
+  .table td {
+    border-bottom: 1px solid #EEEEEE !important;
+    padding: 6px 10px !important;
+  }
+
+  /* Dedicated Payslip Slip Container */
+  .payslip-print-container {
+    width: 100% !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    padding: 20px !important;
+    border: 2px solid #17233B !important;
+    border-radius: 4px !important;
+    background: #FFFFFF !important;
+  }
+
+  .payslip-header-print {
+    display: flex !important;
+    justify-content: space-between !important;
+    border-bottom: 2px solid #17233B !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Avoid page breaks inside sections */
+  .print-page-break {
+    page-break-before: always;
+  }
+}

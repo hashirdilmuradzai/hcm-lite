@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Manage organization employees, roles, login credentials, and department assignments in HCM Lite.">
+  <title>Employees Management — HCM Lite</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar-backdrop"></div>
+    <aside class="sidebar"></aside>
+
+    <div class="main-wrapper">
+      <header class="topbar"></header>
+
+      <main class="content-body">
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Employee Directory</h1>
+            <p class="page-description">Manage team members, roles, credentials, and departmental structure.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" id="btn-open-add-employee">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Add New Employee</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-body" style="padding: var(--space-4);">
+            <div class="filter-toolbar" style="margin-bottom: 0;">
+              <div class="filter-group">
+                <div class="search-input-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input type="text" id="employee-search-input" class="form-input" placeholder="Search by name, ID, email, role...">
+                </div>
+
+                <select id="department-filter" class="form-select" style="min-width: 170px;">
+                  <option value="">All Departments</option>
+                </select>
+
+                <select id="status-filter" class="form-select" style="min-width: 140px;">
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <span id="employee-count-label" style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+                  Showing 0 employees
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Employee Table Card -->
+        <div class="card">
+          <div class="card-body-no-padding">
+            <!-- Empty state -->
+            <div class="empty-state" id="employees-empty-state" style="display: none;">
+              <div class="empty-state-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+              <h3 class="empty-state-title">No employees found</h3>
+              <p class="empty-state-description" id="employees-empty-description">Add your first employee to set up their profile, credentials, and self-service portal access.</p>
+              <button class="btn btn-primary btn-sm" id="btn-empty-add-employee">Add First Employee</button>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive" id="employees-table-container">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Monthly Salary</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="employees-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ADD / EDIT EMPLOYEE MODAL -->
+  <div class="modal-backdrop" id="employee-modal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="employee-modal-title">Add New Employee</h3>
+        <button class="modal-close" id="close-emp-modal">${UI.ICONS.x}</button>
+      </div>
+      <form id="employee-form">
+        <input type="hidden" id="edit-employee-id">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="emp-name">Full Name <span class="required">*</span></label>
+              <input type="text" id="emp-name" class="form-input" required placeholder="e.g. John Doe">
+              <div class="form-error" id="err-emp-name"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="emp-email">Email Address <span class="required">*</span></label>
+              <input type="email" id="emp-email" class="form-input" required placeholder="john.doe@company.com">
+              <div class="form-error" id="err-emp-email"></div>
+            </div>
+          </div>
+
+          <div class="form-row" id="password-form-row">
+            <div class="form-group">
+              <label class="form-label" for="emp-password">Initial Password <span class="required">*</span></label>
+              <input type="password" id="emp-password" class="form-input" minlength="6" placeholder="Min. 6 characters">
+              <span class="form-hint">Used by the employee to log into their self-service portal</span>
+              <div class="form-error" id="err-emp-password"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="emp-confirm-pwd">Confirm Password <span class="required">*</span></label>
+              <input type="password" id="emp-confirm-pwd" class="form-input" minlength="6" placeholder="Re-enter password">
+              <div class="form-error" id="err-emp-confirm-pwd"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="emp-department">Department <span class="required">*</span></label>
+              <input type="text" id="emp-department" class="form-input" required placeholder="e.g. Engineering, Sales, HR" list="department-datalist">
+              <datalist id="department-datalist">
+                <option value="Engineering"></option>
+                <option value="Product Design"></option>
+                <option value="Marketing"></option>
+                <option value="Finance"></option>
+                <option value="Human Resources"></option>
+                <option value="Operations"></option>
+              </datalist>
+              <div class="form-error" id="err-emp-department"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="emp-designation">Designation / Role <span class="required">*</span></label>
+              <input type="text" id="emp-designation" class="form-input" required placeholder="e.g. Senior Frontend Engineer">
+              <div class="form-error" id="err-emp-designation"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="emp-salary">Monthly Salary (PKR) <span class="required">*</span></label>
+              <input type="number" id="emp-salary" class="form-input" required min="1" step="0.01" placeholder="e.g. 150000">
+              <span class="form-hint">Used for automatic monthly payslip calculations</span>
+              <div class="form-error" id="err-emp-salary"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="emp-joining-date">Joining Date <span class="required">*</span></label>
+              <input type="date" id="emp-joining-date" class="form-input" required>
+              <span class="form-hint">Absence counts start strictly after joining</span>
+              <div class="form-error" id="err-emp-joining-date"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="emp-phone">Phone Number (Optional)</label>
+              <input type="tel" id="emp-phone" class="form-input" placeholder="e.g. +92 300 1234567">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="emp-status">Employment Status</label>
+              <select id="emp-status" class="form-select">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancel-emp-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-emp-btn">Save Employee</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RESET PASSWORD MODAL -->
+  <div class="modal-backdrop" id="reset-pwd-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Reset Employee Password</h3>
+        <button class="modal-close" id="close-reset-pwd-modal">${UI.ICONS.x}</button>
+      </div>
+      <form id="reset-pwd-form">
+        <input type="hidden" id="reset-pwd-emp-id">
+        <div class="modal-body">
+          <p id="reset-pwd-description" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-4);"></p>
+          <div class="form-group">
+            <label class="form-label" for="new-reset-pwd">New Password <span class="required">*</span></label>
+            <input type="password" id="new-reset-pwd" class="form-input" required minlength="6" placeholder="Min. 6 characters">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="confirm-reset-pwd">Confirm New Password <span class="required">*</span></label>
+            <input type="password" id="confirm-reset-pwd" class="form-input" required minlength="6" placeholder="Re-enter password">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancel-reset-pwd-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="../js/storage.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script src="../js/payroll.js"></script>
+  <script src="../js/employees.js"></script>
+  <script>
+    const EmployeesPage = (() => {
+      let isEditing = false;
+
+      function init() {
+        const user = Auth.requireAuth('admin');
+        if (!user) return;
+
+        UI.initCommonLayout('employees', user);
+        populateDepartmentFilter();
+        renderTable();
+        setupEvents();
+      }
+
+      function populateDepartmentFilter() {
+        const select = document.getElementById('department-filter');
+        const depts = EmployeeManager.getDepartments();
+        select.innerHTML = '<option value="">All Departments</option>' +
+          depts.map(d => `<option value="${UI.escapeHTML(d)}">${UI.escapeHTML(d)}</option>`).join('');
+      }
+
+      function renderTable() {
+        const query = document.getElementById('employee-search-input').value;
+        const department = document.getElementById('department-filter').value;
+        const status = document.getElementById('status-filter').value;
+
+        const employees = EmployeeManager.queryEmployees({ query, department, status });
+
+        const countLabel = document.getElementById('employee-count-label');
+        if (countLabel) countLabel.textContent = `Showing ${employees.length} employee${employees.length === 1 ? '' : 's'}`;
+
+        const emptyState = document.getElementById('employees-empty-state');
+        const tableContainer = document.getElementById('employees-table-container');
+        const tableBody = document.getElementById('employees-table-body');
+
+        if (employees.length === 0) {
+          if (emptyState) emptyState.style.display = 'flex';
+          if (tableContainer) tableContainer.style.display = 'none';
+        } else {
+          if (emptyState) emptyState.style.display = 'none';
+          if (tableContainer) tableContainer.style.display = 'block';
+
+          if (tableBody) {
+            tableBody.innerHTML = employees.map(emp => `
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar-initials">${UI.getInitials(emp.name)}</div>
+                    <div class="user-cell-meta">
+                      <span class="user-cell-name">${UI.escapeHTML(emp.name)}</span>
+                      <span class="user-cell-id">${emp.id}</span>
+                    </div>
+                  </div>
+                </td>
+                <td style="color: var(--color-text-secondary);">${UI.escapeHTML(emp.email)}</td>
+                <td><span class="badge badge-muted">${UI.escapeHTML(emp.department || 'General')}</span></td>
+                <td>${UI.escapeHTML(emp.designation || 'Staff')}</td>
+                <td><strong>${Payroll.formatCurrency(emp.salary)}</strong></td>
+                <td>${emp.joiningDate || '—'}</td>
+                <td>
+                  <span class="badge ${emp.status === 'inactive' ? 'badge-error' : 'badge-success'}">
+                    <span class="badge-dot"></span>
+                    ${emp.status === 'inactive' ? 'Inactive' : 'Active'}
+                  </span>
+                </td>
+                <td style="text-align: right;">
+                  <div style="display: inline-flex; gap: 4px;">
+                    <button class="btn btn-outline btn-sm edit-emp-btn" data-id="${emp.id}" title="Edit employee">Edit</button>
+                    <button class="btn btn-outline btn-sm reset-pwd-btn" data-id="${emp.id}" title="Reset password">Reset Pwd</button>
+                    <button class="btn btn-danger-outline btn-sm delete-emp-btn" data-id="${emp.id}" title="Delete employee">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('');
+
+            wireRowButtons();
+          }
+        }
+      }
+
+      function wireRowButtons() {
+        document.querySelectorAll('.edit-emp-btn').forEach(btn => {
+          btn.onclick = () => openEditModal(btn.getAttribute('data-id'));
+        });
+
+        document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
+          btn.onclick = () => openResetPwdModal(btn.getAttribute('data-id'));
+        });
+
+        document.querySelectorAll('.delete-emp-btn').forEach(btn => {
+          btn.onclick = () => {
+            const id = btn.getAttribute('data-id');
+            const emp = Storage.getUserById(id);
+            if (!emp) return;
+
+            UI.showConfirmModal({
+              title: `Delete ${emp.name}?`,
+              message: `Are you sure you want to delete employee <strong>${UI.escapeHTML(emp.name)} (${emp.id})</strong>?<br><br><strong>Deletion Policy:</strong> This removes the login account. Existing historical attendance and approved leave logs are preserved for audit and payslip integrity.`,
+              confirmText: 'Delete Employee',
+              isDestructive: true,
+              onConfirm: () => {
+                Storage.deleteUser(id);
+                UI.showToast(`Employee ${emp.name} deleted.`, 'info');
+                populateDepartmentFilter();
+                renderTable();
+              }
+            });
+          };
+        });
+      }
+
+      function setupEvents() {
+        document.getElementById('employee-search-input').oninput = renderTable;
+        document.getElementById('department-filter').onchange = renderTable;
+        document.getElementById('status-filter').onchange = renderTable;
+
+        const modal = document.getElementById('employee-modal');
+        const openBtn = document.getElementById('btn-open-add-employee');
+        const emptyAddBtn = document.getElementById('btn-empty-add-employee');
+        const closeBtn = document.getElementById('close-emp-modal');
+        const cancelBtn = document.getElementById('cancel-emp-btn');
+        const form = document.getElementById('employee-form');
+
+        const openModal = () => {
+          isEditing = false;
+          form.reset();
+          document.getElementById('edit-employee-id').value = '';
+          document.getElementById('employee-modal-title').textContent = 'Add New Employee';
+          document.getElementById('password-form-row').style.display = 'grid';
+          document.getElementById('emp-password').required = true;
+          document.getElementById('emp-confirm-pwd').required = true;
+          document.getElementById('emp-joining-date').value = Attendance.getLocalDateString();
+          modal.classList.add('active');
+        };
+
+        const closeModal = () => { modal.classList.remove('active'); form.reset(); };
+
+        if (openBtn) openBtn.onclick = openModal;
+        if (emptyAddBtn) emptyAddBtn.onclick = openModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+
+        form.onsubmit = async (e) => {
+          e.preventDefault();
+          const saveBtn = document.getElementById('save-emp-btn');
+          saveBtn.disabled = true;
+
+          const id = document.getElementById('edit-employee-id').value;
+          const name = document.getElementById('emp-name').value.trim();
+          const email = document.getElementById('emp-email').value.trim();
+          const department = document.getElementById('emp-department').value.trim();
+          const designation = document.getElementById('emp-designation').value.trim();
+          const salary = document.getElementById('emp-salary').value;
+          const joiningDate = document.getElementById('emp-joining-date').value;
+          const phone = document.getElementById('emp-phone').value.trim();
+          const status = document.getElementById('emp-status').value;
+
+          try {
+            if (isEditing) {
+              await EmployeeManager.updateEmployee(id, {
+                name,
+                email,
+                department,
+                designation,
+                salary,
+                joiningDate,
+                phone,
+                status
+              });
+              UI.showToast(`Updated employee details for ${name}.`, 'success');
+            } else {
+              const password = document.getElementById('emp-password').value;
+              const confirmPwd = document.getElementById('emp-confirm-pwd').value;
+
+              if (password !== confirmPwd) {
+                throw new Error('Passwords do not match.');
+              }
+
+              const newEmp = await EmployeeManager.createEmployee({
+                name,
+                email,
+                password,
+                department,
+                designation,
+                salary,
+                joiningDate,
+                phone,
+                status
+              });
+              UI.showToast(`Employee ${newEmp.name} created! (ID: ${newEmp.id})`, 'success');
+            }
+
+            closeModal();
+            populateDepartmentFilter();
+            renderTable();
+          } catch (err) {
+            UI.showToast(err.message, 'error');
+          } finally {
+            saveBtn.disabled = false;
+          }
+        };
+      }
+
+      function openEditModal(id) {
+        const emp = Storage.getUserById(id);
+        if (!emp) return;
+
+        isEditing = true;
+        const modal = document.getElementById('employee-modal');
+        document.getElementById('edit-employee-id').value = emp.id;
+        document.getElementById('employee-modal-title').textContent = `Edit Employee — ${emp.name}`;
+        document.getElementById('emp-name').value = emp.name;
+        document.getElementById('emp-email').value = emp.email;
+        document.getElementById('emp-department').value = emp.department || '';
+        document.getElementById('emp-designation').value = emp.designation || '';
+        document.getElementById('emp-salary').value = emp.salary || '';
+        document.getElementById('emp-joining-date').value = emp.joiningDate || '';
+        document.getElementById('emp-phone').value = emp.phone || '';
+        document.getElementById('emp-status').value = emp.status || 'active';
+
+        // Hide password creation row during basic edit (password reset is separate)
+        document.getElementById('password-form-row').style.display = 'none';
+        document.getElementById('emp-password').required = false;
+        document.getElementById('emp-confirm-pwd').required = false;
+
+        modal.classList.add('active');
+      }
+
+      function openResetPwdModal(id) {
+        const emp = Storage.getUserById(id);
+        if (!emp) return;
+
+        const modal = document.getElementById('reset-pwd-modal');
+        const form = document.getElementById('reset-pwd-form');
+        document.getElementById('reset-pwd-emp-id').value = emp.id;
+        document.getElementById('reset-pwd-description').innerHTML =
+          `Set a new login password for <strong>${UI.escapeHTML(emp.name)} (${emp.id})</strong>. The employee will be able to log in immediately with this new password.`;
+
+        const closeModal = () => { modal.classList.remove('active'); form.reset(); };
+        document.getElementById('close-reset-pwd-modal').onclick = closeModal;
+        document.getElementById('cancel-reset-pwd-btn').onclick = closeModal;
+
+        form.onsubmit = async (e) => {
+          e.preventDefault();
+          const p1 = document.getElementById('new-reset-pwd').value;
+          const p2 = document.getElementById('confirm-reset-pwd').value;
+
+          if (p1 !== p2) {
+            UI.showToast('Passwords do not match.', 'error');
+            return;
+          }
+
+          try {
+            await Auth.resetEmployeePassword(emp.id, p1);
+            UI.showToast(`Password for ${emp.name} reset successfully!`, 'success');
+            closeModal();
+          } catch (err) {
+            UI.showToast(err.message, 'error');
+          }
+        };
+
+        modal.classList.add('active');
+      }
+
+      return { init };
+    })();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      EmployeesPage.init();
+    });
+  </script>
+</body>
+</html>
