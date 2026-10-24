@@ -42,7 +42,9 @@ const Attendance = (() => {
   // Check if a time is late based on company start time and grace minutes
   function evaluateIsLate(checkInDateObj, company) {
     const startTimeStr = (company && company.startTime) || '09:00';
-    const graceMinutes = (company && company.graceMinutes !== undefined) ? parseInt(company.graceMinutes, 10) : 15;
+    const graceMinutes = (company && company.graceMinutes !== undefined && company.graceMinutes !== null && company.graceMinutes !== '' && !isNaN(Number(company.graceMinutes))) 
+      ? Number(company.graceMinutes) 
+      : 15;
 
     const [startH, startM] = startTimeStr.split(':').map(Number);
     // Boundary time in minutes from midnight
@@ -115,15 +117,17 @@ const Attendance = (() => {
 
     const now = new Date();
     const checkOutTimestamp = now.getTime();
-    const diffHours = (checkOutTimestamp - record.checkInTimestamp) / (1000 * 60 * 60);
+    const diffMs = checkOutTimestamp - record.checkInTimestamp;
+    const diffHours = diffMs / (1000 * 60 * 60);
     const roundedHours = Math.round(diffHours * 100) / 100;
 
     record.checkOut = getLocalTimeString(now);
     record.checkOutTimestamp = checkOutTimestamp;
     record.workHours = roundedHours;
 
-    // Rule: Under 5 hours = Half Day
-    if (roundedHours < 5.0) {
+    // Rule: Under 5 hours = Half Day (strictly less than 5 hours in milliseconds)
+    const fiveHoursMs = 5 * 60 * 60 * 1000;
+    if (diffMs < fiveHoursMs) {
       record.status = 'Half Day';
     } else {
       record.status = record.isLate ? 'Late' : 'Present';
@@ -143,8 +147,9 @@ const Attendance = (() => {
     const todayStr = getLocalDateString();
     const allEmployees = Storage.getUsers().filter(u => u.role === 'employee' && u.status !== 'inactive');
     const totalEmployees = allEmployees.length;
+    const activeEmpIdSet = new Set(allEmployees.map(u => String(u.id)));
 
-    const todayAttendance = Storage.getAttendanceForDate(todayStr);
+    const todayAttendance = Storage.getAttendanceForDate(todayStr).filter(a => activeEmpIdSet.has(String(a.employeeId)));
     const leaves = Storage.getLeaves();
     const company = Storage.getCompany() || { workingDays: [1,2,3,4,5] };
     const holidays = Storage.getHolidays();
@@ -155,16 +160,16 @@ const Attendance = (() => {
     let lateToday = 0;
     let onLeaveToday = 0;
 
-    // Count present & late from attendance
+    // Count present & late from attendance of active employees
     todayAttendance.forEach(a => {
       presentToday++;
       if (a.isLate) lateToday++;
     });
 
-    // Check approved leaves covering today
+    // Check approved leaves covering today for active employees
     const employeeOnLeaveIds = new Set();
     leaves.forEach(l => {
-      if (l.status === 'Approved' && l.fromDate <= todayStr && todayStr <= l.toDate) {
+      if (l.status === 'Approved' && activeEmpIdSet.has(String(l.employeeId)) && l.fromDate <= todayStr && todayStr <= l.toDate) {
         employeeOnLeaveIds.add(String(l.employeeId));
       }
     });
@@ -213,8 +218,13 @@ const Attendance = (() => {
     // Days in the given month
     const totalDaysInMonth = new Date(year, month, 0).getDate();
     const today = new Date();
-    const isCurrentMonth = today.getFullYear() === year && (today.getMonth() + 1) === month;
-    const maxEvaluationDay = isCurrentMonth ? today.getDate() : totalDaysInMonth;
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+
+    const isCurrentMonth = (year === currentYear && month === currentMonth);
+    const isFutureMonth = (year > currentYear || (year === currentYear && month > currentMonth));
+    const isPastMonth = (year < currentYear || (year === currentYear && month < currentMonth));
 
     const allAttendances = Storage.getAttendanceForEmployee(employeeId);
     const allLeaves = Storage.getLeavesForEmployee(employeeId).filter(l => l.status === 'Approved');
@@ -240,7 +250,6 @@ const Attendance = (() => {
 
       // Check if employee had already joined by this date
       const hasJoined = dateStr >= empJoinDate;
-      const isPastOrToday = day <= maxEvaluationDay;
 
       // Find attendance record for this day
       const att = allAttendances.find(a => a.date === dateStr);
@@ -264,9 +273,15 @@ const Attendance = (() => {
       } else if (leaveCover) {
         dayStatus = `On Leave (${leaveCover.type})`;
         approvedLeaveDays++;
-      } else if (isWorkDay && isPastOrToday) {
-        dayStatus = 'Absent';
-        absentDays++;
+      } else if (isWorkDay) {
+        if (isPastMonth || (isCurrentMonth && day < currentDay)) {
+          dayStatus = 'Absent';
+          absentDays++;
+        } else if (isCurrentMonth && day === currentDay) {
+          dayStatus = 'Pending Check-In';
+        } else {
+          dayStatus = 'Upcoming';
+        }
       }
 
       dailyBreakdown.push({

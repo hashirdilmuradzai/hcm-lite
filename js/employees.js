@@ -9,18 +9,46 @@
  */
 
 const EmployeeManager = (() => {
-  // Generate next sequential employee ID (e.g. EMP-1001, EMP-1002)
+  // Generate next sequential employee ID (e.g. EMP-1001, EMP-1002) - never reuses deleted IDs
   function generateEmployeeId() {
-    const users = Storage.getUsers().filter(u => u.role === 'employee');
-    let maxNum = 1000;
+    const company = Storage.getCompany() || {};
+    let maxNum = parseInt(company.nextEmployeeSeq, 10) || 1000;
+
+    // Also check current users
+    const users = Storage.getUsers();
     users.forEach(u => {
-      const match = String(u.id).match(/EMP-(\d+)/);
+      const match = String(u.id).match(/EMP-(\d+)/i);
       if (match) {
         const num = parseInt(match[1], 10);
         if (num > maxNum) maxNum = num;
       }
     });
-    return `EMP-${maxNum + 1}`;
+
+    // Also check historical attendance and leaves to avoid any ID collisions
+    const attendances = Storage.getAttendance();
+    attendances.forEach(a => {
+      const match = String(a.employeeId).match(/EMP-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+
+    const leaves = Storage.getLeaves();
+    leaves.forEach(l => {
+      const match = String(l.employeeId).match(/EMP-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+
+    const nextIdNum = maxNum + 1;
+    // Persist next sequence in company
+    company.nextEmployeeSeq = nextIdNum;
+    Storage.saveCompany(company);
+
+    return `EMP-${nextIdNum}`;
   }
 
   // Create new employee

@@ -30,15 +30,47 @@ const Leave = (() => {
     return workingDaysCount;
   }
 
+  // Calculate working days broken down by calendar year
+  function calculateWorkingDaysByYear(fromDateStr, toDateStr, company, holidays = []) {
+    const from = new Date(fromDateStr + 'T00:00:00');
+    const to = new Date(toDateStr + 'T00:00:00');
+    const breakdown = {};
+
+    if (from > to) return breakdown;
+
+    const current = new Date(from);
+    while (current <= to) {
+      if (Attendance.isConfiguredWorkingDay(current, company, holidays)) {
+        const yr = current.getFullYear();
+        breakdown[yr] = (breakdown[yr] || 0) + 1;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return breakdown;
+  }
+
   // Get total approved leave days for an employee in a given calendar year
   function getApprovedLeaveDaysInYear(employeeId, year = new Date().getFullYear()) {
     const leaves = Storage.getLeavesForEmployee(employeeId);
+    const company = Storage.getCompany() || { workingDays: [1,2,3,4,5], leaveQuota: 18 };
+    const holidays = Storage.getHolidays();
     let total = 0;
-    const yearStr = String(year);
+    const targetYear = parseInt(year, 10);
 
     leaves.forEach(l => {
-      if (l.status === 'Approved' && l.fromDate.startsWith(yearStr)) {
-        total += (l.days || 0);
+      if (l.status === 'Approved') {
+        const fromYear = parseInt(l.fromDate.split('-')[0], 10);
+        const toYear = parseInt(l.toDate.split('-')[0], 10);
+        if (fromYear === targetYear && toYear === targetYear) {
+          total += (l.days || 0);
+        } else if (fromYear <= targetYear && targetYear <= toYear) {
+          // Cross-year leave, count working days specifically in targetYear
+          const yearStart = `${targetYear}-01-01`;
+          const yearEnd = `${targetYear}-12-31`;
+          const effFrom = l.fromDate > yearStart ? l.fromDate : yearStart;
+          const effTo = l.toDate < yearEnd ? l.toDate : yearEnd;
+          total += calculateWorkingDays(effFrom, effTo, company, holidays);
+        }
       }
     });
 
@@ -94,12 +126,14 @@ const Leave = (() => {
       throw new Error('You already have a pending or approved leave request during these dates.');
     }
 
-    // Check balance
-    const reqYear = parseInt(fromDate.split('-')[0], 10);
-    const balance = getLeaveBalance(employeeId, reqYear);
-
-    if (workingDays > balance.remainingDays) {
-      throw new Error(`Insufficient leave balance. You requested ${workingDays} working days, but have only ${balance.remainingDays} days remaining for ${reqYear}.`);
+    // Check balance for each year spanned
+    const daysByYear = calculateWorkingDaysByYear(fromDate, toDate, company, holidays);
+    for (const [yrStr, reqDays] of Object.entries(daysByYear)) {
+      const yr = parseInt(yrStr, 10);
+      const balance = getLeaveBalance(employeeId, yr);
+      if (reqDays > balance.remainingDays) {
+        throw new Error(`Insufficient leave balance for ${yr}. You requested ${reqDays} working days in ${yr}, but have only ${balance.remainingDays} days remaining.`);
+      }
     }
 
     const leaveRequest = {
@@ -132,12 +166,16 @@ const Leave = (() => {
     if (!leave) throw new Error('Leave request not found.');
     if (leave.status !== 'Pending') throw new Error(`Leave request is already ${leave.status}.`);
 
-    // Revalidate available balance at approval time (Rule #9)
-    const reqYear = parseInt(leave.fromDate.split('-')[0], 10);
-    const balance = getLeaveBalance(leave.employeeId, reqYear);
-
-    if (leave.days > balance.remainingDays) {
-      throw new Error(`Cannot approve: Employee only has ${balance.remainingDays} leave days remaining for ${reqYear}, but requested ${leave.days}.`);
+    // Revalidate available balance at approval time for each year spanned
+    const company = Storage.getCompany() || { workingDays: [1,2,3,4,5], leaveQuota: 18 };
+    const holidays = Storage.getHolidays();
+    const daysByYear = calculateWorkingDaysByYear(leave.fromDate, leave.toDate, company, holidays);
+    for (const [yrStr, reqDays] of Object.entries(daysByYear)) {
+      const yr = parseInt(yrStr, 10);
+      const balance = getLeaveBalance(leave.employeeId, yr);
+      if (reqDays > balance.remainingDays) {
+        throw new Error(`Cannot approve: Employee only has ${balance.remainingDays} leave days remaining for ${yr}, but requested ${reqDays} days in ${yr}.`);
+      }
     }
 
     leave.status = 'Approved';
@@ -175,6 +213,7 @@ const Leave = (() => {
 
   return {
     calculateWorkingDays,
+    calculateWorkingDaysByYear,
     getApprovedLeaveDaysInYear,
     getLeaveBalance,
     checkLeaveOverlap,

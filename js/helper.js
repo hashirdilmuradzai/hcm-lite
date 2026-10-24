@@ -275,9 +275,8 @@ const SmartHelper = (() => {
           <div class="helper-title">
             ${UI.ICONS.bot}
             <span>Smart HR Helper</span>
-            <span class="helper-ai-badge">Data AI</span>
           </div>
-          <span style="font-size: 0.75rem; color: var(--color-text-muted);">Real-time Live Sync</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--color-text-muted);"><span class="company-pulse-dot" style="width: 6px; height: 6px;"></span>Online</span>
         </div>
         <div class="helper-messages" id="helper-msg-list">
           <div class="message-bubble message-bot">

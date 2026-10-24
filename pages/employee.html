@@ -481,9 +481,7 @@
         let gpsReady = !needsGps;
 
         function checkReadiness() {
-          if (cameraReady && gpsReady) {
-            confirmBtn.disabled = false;
-          }
+          confirmBtn.disabled = !(cameraReady && gpsReady);
         }
 
         // Camera setup
@@ -498,10 +496,12 @@
                 faceGuide.classList.add('face-detected');
                 cameraReady = true;
                 verificationMeta.faceVerified = true;
-                checkReadiness();
               } else {
                 faceGuide.classList.remove('face-detected');
+                cameraReady = false;
+                verificationMeta.faceVerified = false;
               }
+              checkReadiness();
             });
           }).catch(err => {
             errorBox.style.display = 'block';

@@ -45,7 +45,9 @@ const Storage = (() => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
       // Dispatch custom storage event for in-page reactivity
-      window.dispatchEvent(new CustomEvent('hcm_storage_change', { detail: { key, value } }));
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hcm_storage_change', { detail: { key, value } }));
+      }
       return true;
     } catch (e) {
       console.error(`[Storage] Error writing key "${key}":`, e);
@@ -56,7 +58,9 @@ const Storage = (() => {
   function remove(key) {
     try {
       localStorage.removeItem(key);
-      window.dispatchEvent(new CustomEvent('hcm_storage_change', { detail: { key, value: null } }));
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hcm_storage_change', { detail: { key, value: null } }));
+      }
       return true;
     } catch (e) {
       console.error(`[Storage] Error removing key "${key}":`, e);

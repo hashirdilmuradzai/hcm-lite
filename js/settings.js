@@ -181,7 +181,8 @@ const SettingsController = (() => {
   function saveAllSettings() {
     const name = document.getElementById('company-name-input').value.trim();
     const startTime = document.getElementById('office-start-input').value || '09:00';
-    const graceMinutes = parseInt(document.getElementById('grace-minutes-input').value, 10) || 15;
+    const graceVal = document.getElementById('grace-minutes-input').value;
+    const graceMinutes = (graceVal !== '' && !isNaN(Number(graceVal))) ? Math.max(0, parseInt(graceVal, 10)) : 15;
     const leaveQuota = parseInt(document.getElementById('leave-quota-input').value, 10) || 18;
 
     // Collect checked days

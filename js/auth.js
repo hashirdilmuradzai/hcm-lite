@@ -71,7 +71,7 @@ const Auth = (() => {
     const company = {
       name: companyName.trim(),
       startTime: startTime || '09:00',
-      graceMinutes: parseInt(graceMinutes, 10) || 15,
+      graceMinutes: (graceMinutes !== undefined && graceMinutes !== null && graceMinutes !== '' && !isNaN(Number(graceMinutes))) ? Math.max(0, parseInt(graceMinutes, 10)) : 15,
       workingDays: Array.isArray(workingDays) ? workingDays.map(Number) : [1, 2, 3, 4, 5],
       leaveQuota: parseInt(leaveQuota, 10) || 18,
       officeLat: null,

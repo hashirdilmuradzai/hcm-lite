@@ -62,8 +62,21 @@ const App = (() => {
       const adminPassword = document.getElementById('setup-admin-pwd').value;
       const confirmPassword = document.getElementById('setup-confirm-pwd').value;
       const startTime = document.getElementById('setup-start-time').value || '09:00';
-      const graceMinutes = document.getElementById('setup-grace-mins').value || 15;
-      const leaveQuota = document.getElementById('setup-leave-quota').value || 18;
+      const graceVal = document.getElementById('setup-grace-mins').value;
+      const graceMinutes = (graceVal !== '' && !isNaN(Number(graceVal))) ? Math.max(0, parseInt(graceVal, 10)) : 15;
+      const leaveQuota = parseInt(document.getElementById('setup-leave-quota').value, 10) || 18;
+
+      // Collect selected working days
+      const workingDays = [];
+      const workdayCbs = form.querySelectorAll('.setup-workday:checked');
+      workdayCbs.forEach(cb => workingDays.push(parseInt(cb.value, 10)));
+
+      if (workingDays.length === 0) {
+        UI.showToast('Please select at least one weekly working day.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Company & Admin Account';
+        return;
+      }
 
       if (adminPassword !== confirmPassword) {
         UI.showToast('Passwords do not match.', 'error');
@@ -81,7 +94,7 @@ const App = (() => {
           startTime,
           graceMinutes,
           leaveQuota,
-          workingDays: [1, 2, 3, 4, 5] // Mon - Fri default
+          workingDays
         });
 
         UI.showToast('Workspace created successfully! Entering dashboard...', 'success');
