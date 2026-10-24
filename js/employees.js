@@ -135,6 +135,13 @@ const EmployeeManager = (() => {
     return updated;
   }
 
+  // Delete employee by ID
+  function deleteEmployee(id) {
+    const user = Storage.getUserById(id);
+    if (!user) throw new Error('Employee not found.');
+    return Storage.deleteUser(id);
+  }
+
   // Filter and search employee list
   function queryEmployees({ query = '', department = '', status = '', sortBy = 'name', sortOrder = 'asc' } = {}) {
     let list = Storage.getUsers().filter(u => u.role === 'employee');
@@ -191,6 +198,7 @@ const EmployeeManager = (() => {
     generateEmployeeId,
     createEmployee,
     updateEmployee,
+    deleteEmployee,
     queryEmployees,
     getDepartments
   };

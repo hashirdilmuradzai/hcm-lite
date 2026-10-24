@@ -382,13 +382,20 @@ const Storage = (() => {
         createdAt: new Date().toISOString()
       });
     }
-    return set(key, users);
+    const success = set(key, users);
+    if (!success) {
+      throw new Error('Failed to save employee record to browser storage. Storage quota may be full.');
+    }
+    return true;
   }
 
   function deleteUser(id, overrideCompanyId = null) {
     const key = getScopedKey('users', overrideCompanyId);
     const users = getUsers(overrideCompanyId).filter(u => String(u.id) !== String(id));
-    set(key, users);
+    const success = set(key, users);
+    if (!success) {
+      throw new Error('Failed to remove employee record from browser storage.');
+    }
     logActivity('Deleted Employee', `Removed employee account ID ${id}`, 'admin', '', overrideCompanyId);
     return true;
   }

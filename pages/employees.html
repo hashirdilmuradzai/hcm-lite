@@ -9,6 +9,16 @@
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
   <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    @keyframes rowGlow {
+      0% { background-color: rgba(37, 99, 235, 0.18); }
+      70% { background-color: rgba(37, 99, 235, 0.08); }
+      100% { background-color: transparent; }
+    }
+    .row-highlight {
+      animation: rowGlow 2.5s ease-out forwards;
+    }
+  </style>
 </head>
 <body>
   <div class="app-container">
@@ -229,12 +239,12 @@
   <div id="toast-container"></div>
 
   <!-- Scripts -->
-  <script src="../js/storage.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/ui.js"></script>
-  <script src="../js/attendance.js"></script>
-  <script src="../js/payroll.js"></script>
-  <script src="../js/employees.js"></script>
+  <script src="../js/storage.js?v=2.3.0"></script>
+  <script src="../js/auth.js?v=2.3.0"></script>
+  <script src="../js/ui.js?v=2.3.0"></script>
+  <script src="../js/attendance.js?v=2.3.0"></script>
+  <script src="../js/payroll.js?v=2.3.0"></script>
+  <script src="../js/employees.js?v=2.3.0"></script>
   <script>
     const EmployeesPage = (() => {
       let isEditing = false;
@@ -249,22 +259,39 @@
         setupEvents();
       }
 
-      function populateDepartmentFilter() {
+      function populateDepartmentFilter(preserveDept = '') {
         const select = document.getElementById('department-filter');
+        if (!select) return;
+        const currentVal = preserveDept !== undefined && preserveDept !== null && preserveDept !== ''
+          ? preserveDept
+          : select.value;
         const depts = EmployeeManager.getDepartments();
         select.innerHTML = '<option value="">All Departments</option>' +
           depts.map(d => `<option value="${UI.escapeHTML(d)}">${UI.escapeHTML(d)}</option>`).join('');
+
+        if (currentVal && depts.includes(currentVal)) {
+          select.value = currentVal;
+        } else {
+          select.value = '';
+        }
       }
 
-      function renderTable() {
-        const query = document.getElementById('employee-search-input').value;
-        const department = document.getElementById('department-filter').value;
-        const status = document.getElementById('status-filter').value;
+      function renderTable(highlightId = null) {
+        const searchInput = document.getElementById('employee-search-input');
+        const deptFilter = document.getElementById('department-filter');
+        const statusFilter = document.getElementById('status-filter');
+
+        const query = searchInput ? searchInput.value : '';
+        const department = deptFilter ? deptFilter.value : '';
+        const status = statusFilter ? statusFilter.value : '';
 
         const employees = EmployeeManager.queryEmployees({ query, department, status });
 
+        // Update count label immediately
         const countLabel = document.getElementById('employee-count-label');
-        if (countLabel) countLabel.textContent = `Showing ${employees.length} employee${employees.length === 1 ? '' : 's'}`;
+        if (countLabel) {
+          countLabel.textContent = `Showing ${employees.length} employee${employees.length === 1 ? '' : 's'}`;
+        }
 
         const emptyState = document.getElementById('employees-empty-state');
         const tableContainer = document.getElementById('employees-table-container');
@@ -278,8 +305,10 @@
           if (tableContainer) tableContainer.style.display = 'block';
 
           if (tableBody) {
-            tableBody.innerHTML = employees.map(emp => `
-              <tr>
+            tableBody.innerHTML = employees.map(emp => {
+              const isTargetRow = highlightId && String(emp.id) === String(highlightId);
+              return `
+              <tr id="emp-row-${emp.id}" class="${isTargetRow ? 'row-highlight' : ''}">
                 <td>
                   <div class="user-cell">
                     <div class="user-avatar-initials">${UI.getInitials(emp.name)}</div>
@@ -308,9 +337,18 @@
                   </div>
                 </td>
               </tr>
-            `).join('');
+            `;
+            }).join('');
 
             wireRowButtons();
+
+            // Scroll highlighted row into view smoothly if applicable
+            if (highlightId) {
+              const targetRow = document.getElementById(`emp-row-${highlightId}`);
+              if (targetRow && typeof targetRow.scrollIntoView === 'function') {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            }
           }
         }
       }
@@ -336,9 +374,9 @@
               confirmText: 'Delete Employee',
               isDestructive: true,
               onConfirm: () => {
-                Storage.deleteUser(id);
+                EmployeeManager.deleteEmployee(id);
                 UI.showToast(`Employee ${emp.name} deleted.`, 'info');
-                populateDepartmentFilter();
+                populateDepartmentFilter(document.getElementById('department-filter')?.value);
                 renderTable();
               }
             });
@@ -347,9 +385,13 @@
       }
 
       function setupEvents() {
-        document.getElementById('employee-search-input').oninput = renderTable;
-        document.getElementById('department-filter').onchange = renderTable;
-        document.getElementById('status-filter').onchange = renderTable;
+        const searchInput = document.getElementById('employee-search-input');
+        const deptFilter = document.getElementById('department-filter');
+        const statusFilter = document.getElementById('status-filter');
+
+        if (searchInput) searchInput.oninput = () => renderTable();
+        if (deptFilter) deptFilter.onchange = () => renderTable();
+        if (statusFilter) statusFilter.onchange = () => renderTable();
 
         const modal = document.getElementById('employee-modal');
         const openBtn = document.getElementById('btn-open-add-employee');
@@ -370,7 +412,10 @@
           modal.classList.add('active');
         };
 
-        const closeModal = () => { modal.classList.remove('active'); form.reset(); };
+        const closeModal = () => {
+          modal.classList.remove('active');
+          form.reset();
+        };
 
         if (openBtn) openBtn.onclick = openModal;
         if (emptyAddBtn) emptyAddBtn.onclick = openModal;
@@ -394,7 +439,7 @@
 
           try {
             if (isEditing) {
-              await EmployeeManager.updateEmployee(id, {
+              const updatedEmp = await EmployeeManager.updateEmployee(id, {
                 name,
                 email,
                 department,
@@ -404,7 +449,16 @@
                 phone,
                 status
               });
+
+              // 1. Close modal immediately
+              closeModal();
+
+              // 2. Show success toast
               UI.showToast(`Updated employee details for ${name}.`, 'success');
+
+              // 3. Update department filters & render updated row immediately
+              populateDepartmentFilter(document.getElementById('department-filter')?.value);
+              renderTable(updatedEmp.id);
             } else {
               const password = document.getElementById('emp-password').value;
               const confirmPwd = document.getElementById('emp-confirm-pwd').value;
@@ -413,6 +467,7 @@
                 throw new Error('Passwords do not match.');
               }
 
+              // Save employee to current scoped company in localStorage
               const newEmp = await EmployeeManager.createEmployee({
                 name,
                 email,
@@ -424,18 +479,38 @@
                 phone,
                 status
               });
-              UI.showToast(`Employee ${newEmp.name} created! (ID: ${newEmp.id})`, 'success');
-            }
 
-            closeModal();
-            populateDepartmentFilter();
-            renderTable();
+              // 1. Immediately close the Add Employee modal
+              closeModal();
+
+              // 2. Show success notification
+              UI.showToast(`Employee ${newEmp.name} created! (ID: ${newEmp.id})`, 'success');
+
+              // 3. Clear search and status filters so new employee is guaranteed visible
+              if (searchInput) searchInput.value = '';
+              if (statusFilter) statusFilter.value = '';
+              if (deptFilter) deptFilter.value = '';
+
+              // 4. Update department filters if new department was added
+              populateDepartmentFilter();
+
+              // 5. Immediately display newly created employee in the table and update count
+              renderTable(newEmp.id);
+            }
           } catch (err) {
             UI.showToast(err.message, 'error');
           } finally {
             saveBtn.disabled = false;
           }
         };
+
+        // Listen for internal storage sync events to maintain multi-tab/real-time state
+        window.addEventListener('hcm_storage_change', (event) => {
+          if (event.detail && event.detail.key && event.detail.key.includes('users')) {
+            populateDepartmentFilter(document.getElementById('department-filter')?.value);
+            renderTable();
+          }
+        });
       }
 
       function openEditModal(id) {
@@ -499,7 +574,7 @@
         modal.classList.add('active');
       }
 
-      return { init };
+      return { init, renderTable, populateDepartmentFilter };
     })();
 
     document.addEventListener('DOMContentLoaded', () => {

@@ -308,7 +308,81 @@ async function runTests() {
   assert(footerHtml.includes('href="https://github.com/hashirdilmuradzai/"'), 'Footer contains hyperlink to https://github.com/hashirdilmuradzai/');
   assert(footerHtml.includes('target="_blank"') && footerHtml.includes('rel="noopener noreferrer"'), 'Footer hyperlink opens in a new tab with security attributes');
 
-  // 10. Clean wipe for final delivery
+  // 10. REAL-TIME EMPLOYEE CRUD VERIFICATION (WITHOUT PAGE REFRESH)
+  // Ensure we are in Company 1 context
+  sandbox.Storage.setActiveCompanyId(comp1Id);
+
+  // 10.1 Add first employee when table is empty (emp2 is already there, let's delete emp2 first to simulate 0 employees)
+  sandbox.EmployeeManager.deleteEmployee(emp2.id);
+  assert(sandbox.EmployeeManager.queryEmployees().length === 0, 'Employees table starts with 0 employees');
+
+  // 10.2 Add first employee
+  const createdEmp1 = await sandbox.EmployeeManager.createEmployee({
+    name: 'Alice Springs',
+    email: 'alice@techvision.com',
+    password: 'Password123!',
+    department: 'Artificial Intelligence',
+    designation: 'Research Scientist',
+    salary: 220000,
+    status: 'active'
+  });
+  assert(createdEmp1 && createdEmp1.id === 'EMP-1003', 'First employee created successfully with ID EMP-1003');
+  assert(sandbox.EmployeeManager.queryEmployees().length === 1, 'Employees table immediately reflects 1 employee');
+  assert(sandbox.EmployeeManager.getDepartments().includes('Artificial Intelligence'), 'New department "Artificial Intelligence" immediately appears in departments list');
+
+  // 10.3 Add multiple employees consecutively
+  const createdEmp2 = await sandbox.EmployeeManager.createEmployee({
+    name: 'Bob Johnson',
+    email: 'bob@techvision.com',
+    password: 'Password123!',
+    department: 'Cloud Infrastructure',
+    designation: 'DevOps Engineer',
+    salary: 195000,
+    status: 'active'
+  });
+  const createdEmp3 = await sandbox.EmployeeManager.createEmployee({
+    name: 'Charlie Brown',
+    email: 'charlie@techvision.com',
+    password: 'Password123!',
+    department: 'Marketing',
+    designation: 'Growth Specialist',
+    salary: 160000,
+    status: 'inactive'
+  });
+  assert(sandbox.EmployeeManager.queryEmployees().length === 3, 'Consecutive employee additions immediately update count to 3');
+
+  // 10.4 Query with search & filters and ensure reset brings full list
+  const filteredSearch = sandbox.EmployeeManager.queryEmployees({ query: 'Alice' });
+  assert(filteredSearch.length === 1 && filteredSearch[0].name === 'Alice Springs', 'Search query correctly isolates Alice');
+  const activeOnly = sandbox.EmployeeManager.queryEmployees({ status: 'active' });
+  assert(activeOnly.length === 2, 'Status filter correctly isolates 2 active employees');
+
+  // 10.5 Edit employee
+  const updatedEmp1 = await sandbox.EmployeeManager.updateEmployee(createdEmp1.id, {
+    designation: 'Lead AI Scientist',
+    salary: 260000,
+    department: 'Executive AI'
+  });
+  assert(updatedEmp1.designation === 'Lead AI Scientist', 'Updated designation reflected immediately');
+  assert(updatedEmp1.salary === 260000, 'Updated salary reflected immediately');
+  assert(sandbox.EmployeeManager.getDepartments().includes('Executive AI'), 'Updated department immediately in departments list');
+
+  // 10.6 Reset password without reload
+  const oldHash = sandbox.Storage.getUserById(createdEmp1.id).passwordHash;
+  await sandbox.Auth.resetEmployeePassword(createdEmp1.id, 'BrandNewPass999!');
+  const newHash = sandbox.Storage.getUserById(createdEmp1.id).passwordHash;
+  assert(oldHash !== newHash, 'Employee password reset immediately changes hash');
+
+  // 10.7 Delete employee
+  sandbox.EmployeeManager.deleteEmployee(createdEmp2.id);
+  assert(sandbox.EmployeeManager.queryEmployees().length === 2, 'Deleted employee immediately reduces count to 2');
+  assert(sandbox.Storage.getUserById(createdEmp2.id) === null, 'Deleted employee record removed from active company storage');
+
+  // 10.8 Multi-Company Isolation: Company 2 cannot see Company 1 employees
+  const comp2Employees = sandbox.Storage.getUsers(comp2Id).filter(u => u.role === 'employee');
+  assert(comp2Employees.length === 0, 'Company 2 has zero employees from Company 1');
+
+  // 11. Clean wipe for final delivery
   sandbox.Storage.clearAllData();
   assert(sandbox.Storage.getUsers().length === 0, 'Data successfully wiped clean: users empty');
   assert(sandbox.Storage.getCompanies().length === 0, 'Data successfully wiped clean: companies empty');
