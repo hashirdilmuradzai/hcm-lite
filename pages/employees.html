@@ -245,6 +245,7 @@
   <script src="../js/attendance.js?v=2.3.0"></script>
   <script src="../js/payroll.js?v=2.3.0"></script>
   <script src="../js/employees.js?v=2.3.0"></script>
+  <script src="../js/demo_data.js?v=2.3.0"></script>
   <script>
     const EmployeesPage = (() => {
       let isEditing = false;
@@ -254,6 +255,9 @@
         if (!user) return;
 
         UI.initCommonLayout('employees', user);
+        if (typeof DemoData !== 'undefined') {
+          DemoData.initDevControls();
+        }
         populateDepartmentFilter();
         renderTable();
         setupEvents();

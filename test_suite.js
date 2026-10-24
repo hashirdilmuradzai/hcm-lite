@@ -61,6 +61,7 @@ loadScript('js/leave.js', 'Leave');
 loadScript('js/payroll.js', 'Payroll');
 loadScript('js/employees.js', 'EmployeeManager');
 loadScript('js/helper.js', 'SmartHelper');
+loadScript('js/demo_data.js', 'DemoData');
 
 async function runTests() {
   console.log('=== RUNNING HCM LITE VERIFICATION SUITE ===\n');
@@ -382,7 +383,86 @@ async function runTests() {
   const comp2Employees = sandbox.Storage.getUsers(comp2Id).filter(u => u.role === 'employee');
   assert(comp2Employees.length === 0, 'Company 2 has zero employees from Company 1');
 
-  // 11. Clean wipe for final delivery
+  // 11. DEMO DATA GENERATOR & REMOVAL SUITE
+  assert(sandbox.DemoData.isDevMode() === true, 'DemoData detects local dev / test environment');
+  assert(sandbox.DemoData.hasDemoData(comp1Id) === false, 'Fresh workspace has no demo data initially');
+
+  // 11.1 Generate Demo Data
+  const seedResult = await sandbox.DemoData.generateDemoData();
+  assert(seedResult.employeesCount === 20, 'Generated exactly 20 demo employees');
+  assert(seedResult.leavesCount === 10, 'Generated exactly 10 demo leave requests');
+  assert(seedResult.announcementsCount === 4, 'Generated exactly 4 demo announcements');
+  assert(sandbox.DemoData.hasDemoData(comp1Id) === true, 'Workspace now registers demo data as active');
+
+  // 11.2 Verify 20 Pakistani employees attributes
+  const allUsersAfterSeed = sandbox.Storage.getUsers(comp1Id);
+  const demoEmps = allUsersAfterSeed.filter(u => u.isDemo === true);
+  assert(demoEmps.length === 20, '20 demo employees flagged with isDemo: true');
+
+  // Check reserved email domain
+  const allReservedDomain = demoEmps.every(e => e.email.endsWith('@example.test'));
+  assert(allReservedDomain === true, 'All demo employee emails use reserved example.test domain');
+
+  // Check salaries within PKR 35,000 to PKR 150,000
+  const allSalariesValid = demoEmps.every(e => e.salary >= 35000 && e.salary <= 150000);
+  assert(allSalariesValid === true, 'All demo employee salaries are between PKR 35,000 and PKR 150,000');
+
+  // Check 5 required departments
+  const requiredDepts = ['Human Resources', 'Engineering', 'Marketing', 'Finance', 'Operations'];
+  const presentDepts = new Set(demoEmps.map(e => e.department));
+  const hasAllRequiredDepts = requiredDepts.every(d => presentDepts.has(d));
+  assert(hasAllRequiredDepts === true, 'All 5 required departments are represented in demo data');
+
+  // 11.3 Verify Attendance Records across past 30 days
+  const demoAtt = sandbox.Storage.getAttendance(comp1Id).filter(a => a.isDemo === true);
+  assert(demoAtt.length > 300, `Generated comprehensive attendance records (${demoAtt.length} records across 30 days)`);
+
+  // Check no attendance on future dates
+  const todayIso = sandbox.Attendance.getLocalDateString();
+  const noFutureAtt = demoAtt.every(a => a.date <= todayIso);
+  assert(noFutureAtt === true, 'No attendance records are dated in the future');
+
+  // 11.4 Verify Leave Requests (Approved, Pending, Rejected)
+  const demoLeaves = sandbox.Storage.getLeaves(comp1Id).filter(l => l.isDemo === true);
+  assert(demoLeaves.length === 10, 'Total 10 demo leaves exist');
+  const approvedCount = demoLeaves.filter(l => l.status === 'Approved').length;
+  const pendingCount = demoLeaves.filter(l => l.status === 'Pending').length;
+  const rejectedCount = demoLeaves.filter(l => l.status === 'Rejected').length;
+  assert(approvedCount === 4 && pendingCount === 3 && rejectedCount === 3, `Leaves mix verified: 4 Approved, 3 Pending, 3 Rejected`);
+
+  // 11.5 Verify Announcements
+  const demoAnnouncements = sandbox.Storage.getAnnouncements(comp1Id).filter(a => a.isDemo === true);
+  assert(demoAnnouncements.length === 4, '4 realistic announcements seeded');
+
+  // 11.6 Prevent Duplicate Demo Data
+  let duplicatePrevented = false;
+  try {
+    await sandbox.DemoData.generateDemoData();
+  } catch (e) {
+    duplicatePrevented = true;
+  }
+  assert(duplicatePrevented === true, 'Running generator twice is safely blocked to prevent duplicate records');
+
+  // 11.7 Multi-company isolation check
+  assert(sandbox.DemoData.hasDemoData(comp2Id) === false, 'Demo data from Company 1 does not leak into Company 2');
+
+  // 11.8 Smart Helper returns populated data
+  const helperResponse = sandbox.SmartHelper.answerAdminQuery('total employees');
+  assert(helperResponse.includes('employee'), 'Smart Helper responds with accurate employee count');
+
+  // 11.9 Remove Demo Data
+  // Real user created earlier (Alice Springs, EMP-1003) must be preserved!
+  const realCountBefore = allUsersAfterSeed.filter(u => !u.isDemo && u.role === 'employee').length;
+  sandbox.DemoData.removeDemoData(comp1Id);
+  assert(sandbox.DemoData.hasDemoData(comp1Id) === false, 'Demo data successfully removed');
+  const usersAfterRemove = sandbox.Storage.getUsers(comp1Id);
+  const realCountAfter = usersAfterRemove.filter(u => !u.isDemo && u.role === 'employee').length;
+  assert(realCountBefore === realCountAfter, 'All genuine user records are strictly preserved after demo removal');
+  assert(sandbox.Storage.getAttendance(comp1Id).filter(a => a.isDemo).length === 0, 'All demo attendance records removed');
+  assert(sandbox.Storage.getLeaves(comp1Id).filter(l => l.isDemo).length === 0, 'All demo leaves removed');
+  assert(sandbox.Storage.getAnnouncements(comp1Id).filter(a => a.isDemo).length === 0, 'All demo announcements removed');
+
+  // 12. Clean wipe for final delivery
   sandbox.Storage.clearAllData();
   assert(sandbox.Storage.getUsers().length === 0, 'Data successfully wiped clean: users empty');
   assert(sandbox.Storage.getCompanies().length === 0, 'Data successfully wiped clean: companies empty');

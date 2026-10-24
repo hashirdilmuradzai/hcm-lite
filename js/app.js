@@ -301,6 +301,10 @@ const App = (() => {
 
     UI.initCommonLayout('admin', user);
 
+    if (typeof DemoData !== 'undefined') {
+      DemoData.initDevControls();
+    }
+
     renderAdminDashboardData();
     SmartHelper.initWidget('admin-helper-container', user);
     AnnouncementManager.renderAnnouncementsList('admin-announcements-list', true);
@@ -340,6 +344,9 @@ const App = (() => {
     // React to storage changes
     window.addEventListener('hcm_storage_change', () => {
       renderAdminDashboardData();
+      if (typeof AnnouncementManager !== 'undefined') {
+        AnnouncementManager.renderAnnouncementsList('admin-announcements-list', true);
+      }
     });
   }
 

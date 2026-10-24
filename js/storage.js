@@ -500,12 +500,11 @@ const Storage = (() => {
     const all = getAnnouncements(overrideCompanyId);
     const item = {
       id: announcement.id || `ANN-${Date.now()}`,
-      title: announcement.title,
-      content: announcement.content,
-      authorName: announcement.authorName || 'Management',
-      priority: announcement.priority || 'normal',
+      authorName: 'Management',
+      priority: 'normal',
       date: getLocalDateString(),
-      createdAt: new Date().toISOString()
+      ...announcement,
+      createdAt: announcement.createdAt || new Date().toISOString()
     };
     all.unshift(item);
     return set(key, all);
@@ -648,6 +647,7 @@ const Storage = (() => {
     getCompanyByName,
     getActiveCompanyId,
     setActiveCompanyId,
+    getScopedKey,
     createCompanyWorkspace,
     getCompany,
     saveCompany,
